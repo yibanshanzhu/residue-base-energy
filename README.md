@@ -18,10 +18,33 @@ PWM[j,b] = softmax_b Σ_i A(i,j) * E(i,j,b)
 
 ## 安装
 
+GPU 服务器推荐：
+
 ```bash
-cd /Users/qd/code/xbind/residue-base-energy
-conda activate dl_hw
+git clone https://github.com/yibanshanzhu/residue-base-energy.git
+cd residue-base-energy
+conda env create -f environment.gpu.yml
+conda activate rbe_gpu
 pip install -e .
+```
+
+如果服务器已有可用 GPU 环境，也可以只执行：
+
+```bash
+conda activate 你的GPU环境
+pip install -e .
+```
+
+## GPU smoke test
+
+```bash
+python scripts/create_toy_npz.py --out-dir /tmp/rbe_toy
+python -m rbe.train \
+  --data-dir /tmp/rbe_toy \
+  --config configs/dna_v1.yaml \
+  --out-dir /tmp/rbe_run \
+  --epochs 1 \
+  --device cuda
 ```
 
 ## 数据处理
@@ -117,4 +140,3 @@ python -m rbe.eval.evaluate_pwm \
 | PWM | MAE、KL、IC-weighted PCC、RC-aware KL |
 | protein site | AP、MCC、F1 |
 | A map | AP、top-L precision |
-

@@ -1,0 +1,17 @@
+name: rbe_gpu
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - numpy>=1.23
+  - pyyaml>=6.0
+  - pytest
+  - pytorch
+  - pytorch-cuda=12.1
+  - pip:
+      - fair-esm>=2.0
+
