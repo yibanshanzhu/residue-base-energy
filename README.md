@@ -1,6 +1,5 @@
-# Residue-Base Energy Model V1
+# Residue-Base Energy Model 
 
-独立仓库实现，不依赖 `DeepPBS` 或 `rCLAMPS` 包运行。
 
 ## 目标
 
