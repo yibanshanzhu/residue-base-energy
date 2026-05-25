@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "residue-base-energy"
+version = "0.1.0"
+description = "Residue-base energy model for DNA-binding specificity prediction."
+readme = "README_CN.md"
+requires-python = ">=3.8"
+dependencies = [
+  "numpy>=1.23",
+  "torch>=2.0",
+  "PyYAML>=6.0",
+  "fair-esm>=2.0",
+]
+
+[project.scripts]
+rbe-process-complex = "rbe.data.process_complex:main"
+rbe-train = "rbe.train:main"
+rbe-predict = "rbe.predict:main"
+rbe-evaluate-pwm = "rbe.eval.evaluate_pwm:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
