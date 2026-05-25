@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "residue-base-energy"
 version = "0.1.0"
 description = "Residue-base energy model for DNA-binding specificity prediction."
-readme = "README_CN.md"
+readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
   "numpy>=1.23",
@@ -23,4 +23,3 @@ rbe-evaluate-pwm = "rbe.eval.evaluate_pwm:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
