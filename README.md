@@ -16,6 +16,12 @@ E(i,j,b): residue i 对 slot j 上 base b 的能量/偏好
 PWM[j,b] = softmax_b Σ_i A(i,j) * E(i,j,b)
 ```
 
+思想来源和模型定义见：
+
+| 文档 | 内容 |
+|---|---|
+| [`docs/idea_from_prior_work.md`](docs/idea_from_prior_work.md) | 说明本项目如何从 rCLAMPS、DeepPBS、EquiPPIS/EquiPNAS、MegSite 等方法抽象出来 |
+
 ## 安装
 
 GPU 服务器推荐：
@@ -49,28 +55,51 @@ python -m rbe.train \
 
 ## 数据处理
 
-输入 PWM 必须已经和 DNA motif strand 对齐。默认把 PWM 第 `j` 行映射到选中 DNA residue list 的第 `dna_start_index + j` 个 nucleotide。
+默认会自动把 PWM 对齐到选中 DNA chain 的 sequence：每条 DNA chain 的正向和反向互补都会尝试，选择 **IC-weighted log-likelihood** 最高的 `start/strand`，然后生成 `slot_to_dna_index`。
 
 ```bash
 python -m rbe.data.process_complex \
   --pdb path/to/complex.pdb \
-  --pwm path/to/aligned_pwm.txt \
+  --pwm path/to/pwm.txt \
   --protein-chains A \
   --dna-chains B \
-  --dna-start-index 0 \
   --output data/train/sample.npz \
   --device cuda
 ```
 
-也可以显式指定 motif slot 到 DNA residue index：
+如需对比朴素 log-likelihood：
 
 ```bash
 python -m rbe.data.process_complex \
   --pdb complex.pdb \
-  --pwm aligned_pwm.txt \
+  --pwm pwm.txt \
+  --protein-chains A \
+  --dna-chains B \
+  --alignment-score log_likelihood \
+  --output data/train/sample.ll.npz
+```
+
+也可以手动覆盖 motif slot 到 DNA residue index：
+
+```bash
+python -m rbe.data.process_complex \
+  --pdb complex.pdb \
+  --pwm pwm.txt \
   --protein-chains A \
   --dna-chains B,C \
   --slot-to-dna-index 3,4,5,6,7,8,9,10 \
+  --output data/train/sample.npz
+```
+
+或者手动指定连续 DNA 起点：
+
+```bash
+python -m rbe.data.process_complex \
+  --pdb complex.pdb \
+  --pwm pwm.txt \
+  --protein-chains A \
+  --dna-chains B \
+  --dna-start-index 3 \
   --output data/train/sample.npz
 ```
 
@@ -88,6 +117,7 @@ python -m rbe.data.process_complex \
 | `A_label` | `N,M` | residue-base contact label |
 | `site_label` | `N` | residue 是否接触 DNA |
 | `slot_to_dna_index` | `M` | motif slot 对应 DNA residue index |
+| `alignment_*` | scalar | 自动/手动 PWM-DNA 对齐信息 |
 
 ## 训练
 

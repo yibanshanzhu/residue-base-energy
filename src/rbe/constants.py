@@ -26,6 +26,17 @@ AA_TO_IDX = {aa: i for i, aa in enumerate(AA_ORDER)}
 
 DNA_RESNAMES = {"DA", "DC", "DG", "DT", "A", "C", "G", "T"}
 
+DNA_BASE_TO_1 = {
+    "DA": "A",
+    "DC": "C",
+    "DG": "G",
+    "DT": "T",
+    "A": "A",
+    "C": "C",
+    "G": "G",
+    "T": "T",
+}
+
 DNA_BACKBONE_ATOMS = {
     "P",
     "OP1",
@@ -56,3 +67,4 @@ DNA_BACKBONE_ATOMS = {
 
 BASE_ORDER = "ACGT"
 
+BASE_TO_IDX = {base: i for i, base in enumerate(BASE_ORDER)}
