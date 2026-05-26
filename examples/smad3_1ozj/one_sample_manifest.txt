@@ -1,0 +1,2 @@
+../../data/train/smad3_1ozj_A.npz
+

@@ -309,6 +309,26 @@ monomer protein PDB + motif length M
 | monomer 推理 | `src/rbe/predict.py` |
 | PWM / site / A map 评估 | `src/rbe/eval/evaluate_pwm.py` |
 
+## E 的可解释性约束
+
+`E(i,j,b)` 没有直接实验标签。只有最终 PWM 标签时，多个 residue 的 `E` 可以互相替代，导致解释不唯一。
+
+当前代码用两个额外约束降低这个问题：
+
+| loss | 核心想法 |
+|---|---|
+| `L_pwm_teacher` | 训练时用真实 `A_label(i,j)` 门控 `E(i,j,b)` 来预测 PWM，强制 `E` 主要由真实接触 residue 解释 |
+| `L_noncontact` | 惩罚非接触 residue 的 `A(i,j) * E(i,j,b)` 贡献，防止不接触 DNA 的 residue 偷偷投票 |
+
+直觉：
+
+```text
+原来：模型可以自己决定谁解释 PWM
+现在：训练时先用真实接触关系告诉模型，哪些 residue 有资格解释对应 PWM 列
+```
+
+这样 `E` 仍然不是直接物理能量，但比只靠 `L_pwm` 更接近 residue-base recognition contribution。
+
 ## 当前 V1 的边界
 
 这个版本只是最小闭环，不是最终论文级模型。
