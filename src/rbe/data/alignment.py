@@ -61,6 +61,20 @@ def _score_pwm_against_sequence(
     score_mode: str,
     eps: float = 1e-8,
 ) -> float:
+    if score_mode == "deeppbs_ic_pcc":
+        weights = pwm_information_content(pwm)
+        column_scores = []
+        for row, base in enumerate(sequence):
+            one_hot = np.zeros(4, dtype=np.float32)
+            one_hot[BASE_TO_IDX[base]] = 1.0
+            pwm_col = pwm[row].astype(np.float32)
+            x = one_hot - one_hot.mean()
+            y = pwm_col - pwm_col.mean()
+            denom = float(np.sqrt(np.sum(x * x) * np.sum(y * y)))
+            pcc = float(np.sum(x * y) / denom) if denom > eps else 0.0
+            column_scores.append(pcc * float(weights[row]))
+        return float(np.mean(column_scores))
+
     log_probs = []
     for row, base in enumerate(sequence):
         log_probs.append(float(np.log(pwm[row, BASE_TO_IDX[base]] + eps)))
@@ -75,7 +89,8 @@ def _score_pwm_against_sequence(
             return float(log_probs_arr.mean())
         return float(np.sum(weights * log_probs_arr) / weight_sum)
     raise ValueError(
-        "Unsupported alignment score mode. Use 'ic_log_likelihood' or 'log_likelihood'."
+        "Unsupported alignment score mode. Use 'ic_log_likelihood', "
+        "'log_likelihood', or 'deeppbs_ic_pcc'."
     )
 
 

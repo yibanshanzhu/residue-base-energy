@@ -13,6 +13,7 @@ dependencies = [
   "torch>=2.0",
   "PyYAML>=6.0",
   "fair-esm>=2.0",
+  "biopython>=1.79",
 ]
 
 [project.scripts]

@@ -23,6 +23,7 @@ PWM[j,b] = softmax_b Σ_i A_base(i,j) * E(i,j,b)
 | 文档 | 内容 |
 |---|---|
 | [`docs/idea_from_prior_work.md`](docs/idea_from_prior_work.md) | 说明本项目如何从 rCLAMPS、DeepPBS、EquiPPIS/EquiPNAS、MegSite 等方法抽象出来 |
+| [`docs/deeppbs_data_alignment.md`](docs/deeppbs_data_alignment.md) | 用 DeepPBS curated mapping 自动下载、导出 PWM、对齐并生成训练数据 |
 
 ## 安装
 
@@ -81,6 +82,17 @@ python -m rbe.data.process_complex \
   --output data/train/sample.ll.npz
 ```
 
+如需使用 DeepPBS 的 IC-weighted PCC 对齐分数：
+
+```bash
+python -m rbe.data.process_complex \
+  --pdb complex.pdb \
+  --pwm pwm.txt \
+  --protein-chains A \
+  --alignment-score deeppbs_ic_pcc \
+  --output data/train/sample.deeppbs_align.npz
+```
+
 也可以手动覆盖 motif slot 到 DNA residue index：
 
 ```bash
@@ -123,6 +135,27 @@ python -m rbe.data.process_complex \
 | `site_label` | `N` | `max_j A_contact_label(i,j)` |
 | `slot_to_dna_index` | `M` | motif slot 对应 DNA residue index |
 | `alignment_*` | scalar | 自动/手动 PWM-DNA 对齐信息 |
+
+## DeepPBS 数据准备
+
+如果本机同时有 DeepPBS 仓库，可以直接复用它整理好的 `PDB_chain -> PWM ID` 映射：
+
+```bash
+python scripts/prepare_deeppbs_smoke.py \
+  --deeppbs-root ../DeepPBS \
+  --fold-file run/folds/valid0.txt \
+  --out-root data/deeppbs_smoke \
+  --limit 20 \
+  --device cuda
+```
+
+这会自动下载 PDB、从 DeepPBS `pwms.pickle` 导出 PWM、用 DeepPBS-style `deeppbs_ic_pcc` 对齐并生成：
+
+```text
+data/deeppbs_smoke/train/*.npz
+data/deeppbs_smoke/train_manifest.txt
+data/deeppbs_smoke/failed.tsv
+```
 
 训练 loss：
 

@@ -200,7 +200,7 @@ def build_argparser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--alignment-score",
-        choices=["ic_log_likelihood", "log_likelihood"],
+        choices=["ic_log_likelihood", "log_likelihood", "deeppbs_ic_pcc"],
         default="ic_log_likelihood",
         help="Score used for automatic PWM-DNA alignment.",
     )
