@@ -157,6 +157,16 @@ python -m rbe.train \
   --device cuda
 ```
 
+训练完成后，用 checkpoint 在同一个处理后样本上生成 `pred.npz`：
+
+```bash
+python -m rbe.eval.predict_npz \
+  --sample data/train/sample.npz \
+  --checkpoint runs/overfit/best.pt \
+  --output runs/overfit/pred.npz \
+  --device cuda
+```
+
 ## 推理
 
 推理脚本只接收 monomer PDB，不接收 DNA 坐标或 complex。
