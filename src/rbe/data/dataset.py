@@ -43,6 +43,15 @@ class RBEDataset(Dataset):
         with np.load(path, allow_pickle=False) as data:
             residue_aa = data["residue_aa"].astype(str)
             aa_idx = np.array([AA_TO_IDX[aa] for aa in residue_aa], dtype=np.int64)
+            A_base_label = data["A_base_label"] if "A_base_label" in data else data["A_label"]
+            if "A_backbone_label" in data:
+                A_backbone_label = data["A_backbone_label"]
+            else:
+                A_backbone_label = np.zeros_like(A_base_label)
+            if "A_contact_label" in data:
+                A_contact_label = data["A_contact_label"]
+            else:
+                A_contact_label = np.maximum(A_base_label, A_backbone_label)
             sample = {
                 "path": str(path),
                 "residue_ids": data["residue_ids"].astype(str),
@@ -53,7 +62,12 @@ class RBEDataset(Dataset):
                 "edge_attr": torch.from_numpy(data["edge_attr"].astype(np.float32)),
                 "esm2_repr": torch.from_numpy(data["esm2_repr"].astype(np.float32)),
                 "pwm_target": torch.from_numpy(normalize_pwm(data["pwm_target"])),
-                "A_label": torch.from_numpy(data["A_label"].astype(np.float32)),
+                "A_label": torch.from_numpy(A_base_label.astype(np.float32)),
+                "A_base_label": torch.from_numpy(A_base_label.astype(np.float32)),
+                "A_backbone_label": torch.from_numpy(
+                    A_backbone_label.astype(np.float32)
+                ),
+                "A_contact_label": torch.from_numpy(A_contact_label.astype(np.float32)),
                 "site_label": torch.from_numpy(data["site_label"].astype(np.float32)),
                 "slot_to_dna_index": torch.from_numpy(
                     data["slot_to_dna_index"].astype(np.int64)
@@ -71,4 +85,3 @@ def to_device(sample: dict, device: torch.device | str) -> dict:
     for key, value in sample.items():
         out[key] = value.to(device) if torch.is_tensor(value) else value
     return out
-

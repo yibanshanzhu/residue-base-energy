@@ -5,15 +5,17 @@
 
 | 阶段 | 输入 | 输出 |
 |---|---|---|
-| 训练 | protein-DNA complex PDB + aligned PWM | `A(i,j)`、PWM、protein-site |
-| 推理 | protein monomer PDB + motif length `M` | `A(i,j)`、`E(i,j,b)`、PWM、protein-site |
+| 训练 | protein-DNA complex PDB + aligned PWM | `A_base/A_backbone/A_contact`、PWM、protein-site |
+| 推理 | protein monomer PDB + motif length `M` | `A_base/A_backbone/A_contact`、`E(i,j,b)`、PWM、protein-site |
 
 核心对象：
 
 ```text
-A(i,j): residue i 和 motif slot j 的可微 contact/alignment
+A_base(i,j): residue i 是否读取 motif slot j 的碱基
+A_backbone(i,j): residue i 是否接触 motif slot j 的糖-磷酸骨架
+A_contact(i,j) = max(A_base(i,j), A_backbone(i,j))
 E(i,j,b): residue i 对 slot j 上 base b 的能量/偏好
-PWM[j,b] = softmax_b Σ_i A(i,j) * E(i,j,b)
+PWM[j,b] = softmax_b Σ_i A_base(i,j) * E(i,j,b)
 ```
 
 思想来源和模型定义见：
@@ -114,8 +116,11 @@ python -m rbe.data.process_complex \
 | `edge_attr` | `E,17` | 16 个 distance RBF + 1 个 sequence separation |
 | `esm2_repr` | `N,1280` | frozen ESM2-t33 layer 33 hidden representation |
 | `pwm_target` | `M,4` | A/C/G/T PWM |
-| `A_label` | `N,M` | residue-base contact label |
-| `site_label` | `N` | residue 是否接触 DNA |
+| `A_base_label` | `N,M` | residue 是否接触第 `j` 个 nucleotide 的 base heavy atoms |
+| `A_backbone_label` | `N,M` | residue 是否接触第 `j` 个 nucleotide 的 sugar/phosphate heavy atoms |
+| `A_contact_label` | `N,M` | `max(A_base_label, A_backbone_label)` |
+| `A_label` | `N,M` | 兼容旧字段，等同于 `A_base_label` |
+| `site_label` | `N` | `max_j A_contact_label(i,j)` |
 | `slot_to_dna_index` | `M` | motif slot 对应 DNA residue index |
 | `alignment_*` | scalar | 自动/手动 PWM-DNA 对齐信息 |
 
@@ -123,12 +128,13 @@ python -m rbe.data.process_complex \
 
 | loss | 作用 |
 |---|---|
-| `L_pwm` | 用预测 `A(i,j)` 门控 `E(i,j,b)` 还原 PWM |
-| `L_pwm_teacher` | 用真实 `A_label(i,j)` 门控 `E(i,j,b)` 还原 PWM，让 `E` 被真实接触 residue 锚住 |
-| `L_A` | 监督 `A(i,j)` 接近真实 residue-base contact |
+| `L_pwm` | 用预测 `A_base(i,j)` 门控 `E(i,j,b)` 还原 PWM |
+| `L_pwm_teacher` | 用真实 `A_base_label(i,j)` 门控 `E(i,j,b)` 还原 PWM，让 `E` 被真实 base contact 锚住 |
+| `L_A_base` | 监督 `A_base(i,j)` 接近真实 base contact |
+| `L_A_backbone` | 监督 `A_backbone(i,j)` 接近真实 backbone contact |
 | `L_site` | 监督 protein-side binding site |
-| `L_sparse` | 防止 `A(i,j)` 到处变大 |
-| `L_noncontact` | 惩罚非接触 residue 对 PWM 的贡献 |
+| `L_sparse` | 防止 `A_contact(i,j)` 到处变大 |
+| `L_noncontact` | 惩罚非 base-contact residue 对 PWM 的贡献 |
 
 ## 训练
 

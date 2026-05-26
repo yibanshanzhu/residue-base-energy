@@ -27,6 +27,9 @@ def test_forward_and_loss_shapes():
         "edge_attr": torch.randn(edge_index.shape[1], 17),
         "pwm_target": torch.softmax(torch.randn(motif_len, 4), dim=-1),
         "A_label": torch.zeros(n_res, motif_len),
+        "A_base_label": torch.zeros(n_res, motif_len),
+        "A_backbone_label": torch.zeros(n_res, motif_len),
+        "A_contact_label": torch.zeros(n_res, motif_len),
         "site_label": torch.zeros(n_res),
     }
     out = model(
@@ -38,6 +41,9 @@ def test_forward_and_loss_shapes():
         motif_len=motif_len,
     )
     assert out["A"].shape == (n_res, motif_len)
+    assert out["A_base"].shape == (n_res, motif_len)
+    assert out["A_backbone"].shape == (n_res, motif_len)
+    assert out["A_contact"].shape == (n_res, motif_len)
     assert out["E"].shape == (n_res, motif_len, 4)
     assert out["pwm"].shape == (motif_len, 4)
     assert out["site_prob"].shape == (n_res,)
@@ -46,7 +52,8 @@ def test_forward_and_loss_shapes():
         sample,
         {
             "lambda_pwm_teacher": 1.0,
-            "lambda_A": 1.0,
+            "lambda_A_base": 1.0,
+            "lambda_A_backbone": 1.0,
             "lambda_site": 0.5,
             "lambda_sparse": 0.01,
             "lambda_noncontact": 0.05,
@@ -54,4 +61,6 @@ def test_forward_and_loss_shapes():
     )
     assert torch.isfinite(losses["loss"])
     assert torch.isfinite(losses["loss_pwm_teacher"])
+    assert torch.isfinite(losses["loss_A_base"])
+    assert torch.isfinite(losses["loss_A_backbone"])
     assert torch.isfinite(losses["loss_noncontact"])

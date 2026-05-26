@@ -77,6 +77,9 @@ def predict(args: argparse.Namespace) -> None:
         pwm=outputs["pwm"].cpu().numpy(),
         pwm_logits=outputs["pwm_logits"].cpu().numpy(),
         A=outputs["A"].cpu().numpy(),
+        A_base=outputs["A_base"].cpu().numpy(),
+        A_backbone=outputs["A_backbone"].cpu().numpy(),
+        A_contact=outputs["A_contact"].cpu().numpy(),
         E=outputs["E"].cpu().numpy(),
         site_prob=outputs["site_prob"].cpu().numpy(),
     )

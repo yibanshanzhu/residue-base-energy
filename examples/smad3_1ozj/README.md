@@ -29,8 +29,10 @@ chain=C
 start=2
 rc=True
 score_mode=ic_log_likelihood
-A_pos=9
-site_pos=17
+A_base_pos=9
+A_backbone_pos=13
+A_contact_pos=19
+site_pos=13
 ```
 
 然后单样本 overfit：
@@ -54,4 +56,3 @@ python -m rbe.train \
   --epochs 200 \
   --device cuda
 ```
-

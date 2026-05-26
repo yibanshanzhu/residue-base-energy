@@ -16,11 +16,13 @@ def make_sample(path: Path, seed: int, n_res: int, motif_len: int) -> None:
     residue_ids = np.asarray([f"A:{i + 1}" for i in range(n_res)])
     esm2_repr = rng.normal(size=(n_res, 1280)).astype(np.float32) * 0.1
 
-    A_label = np.zeros((n_res, motif_len), dtype=np.float32)
+    A_base_label = np.zeros((n_res, motif_len), dtype=np.float32)
+    A_backbone_label = np.zeros((n_res, motif_len), dtype=np.float32)
     for j in range(motif_len):
-        A_label[(j * 3 + seed) % n_res, j] = 1.0
-        A_label[(j * 3 + seed + 1) % n_res, j] = 1.0
-    site_label = (A_label.max(axis=1) > 0).astype(np.float32)
+        A_base_label[(j * 3 + seed) % n_res, j] = 1.0
+        A_backbone_label[(j * 3 + seed + 1) % n_res, j] = 1.0
+    A_contact_label = np.maximum(A_base_label, A_backbone_label).astype(np.float32)
+    site_label = (A_contact_label.max(axis=1) > 0).astype(np.float32)
 
     logits = rng.normal(size=(motif_len, 4)).astype(np.float32)
     logits[:, 0] += np.linspace(0.5, -0.5, motif_len)
@@ -38,7 +40,10 @@ def make_sample(path: Path, seed: int, n_res: int, motif_len: int) -> None:
         edge_attr=edge_attr,
         esm2_repr=esm2_repr,
         pwm_target=pwm_target,
-        A_label=A_label,
+        A_label=A_base_label,
+        A_base_label=A_base_label,
+        A_backbone_label=A_backbone_label,
+        A_contact_label=A_contact_label,
         site_label=site_label,
         slot_to_dna_index=slot_to_dna_index,
     )
@@ -65,4 +70,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

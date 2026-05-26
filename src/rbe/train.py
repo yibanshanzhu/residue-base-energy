@@ -58,6 +58,8 @@ def train(args: argparse.Namespace) -> None:
         "loss_pwm",
         "loss_pwm_teacher",
         "loss_A",
+        "loss_A_base",
+        "loss_A_backbone",
         "loss_site",
         "loss_sparse",
         "loss_noncontact",

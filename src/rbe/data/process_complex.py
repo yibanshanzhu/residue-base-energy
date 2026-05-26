@@ -10,6 +10,7 @@ from rbe.data.esm import extract_esm2_t33_hidden
 from rbe.data.features import build_residue_graph, min_pairwise_distance
 from rbe.data.pdb import (
     base_heavy_atom_coords,
+    backbone_heavy_atom_coords,
     ca_or_centroid,
     heavy_atom_coords,
     parse_chain_list,
@@ -117,18 +118,26 @@ def process_complex(args: argparse.Namespace) -> None:
             f"esm2_repr must have shape {(len(protein), 1280)}, got {esm2_repr.shape}."
         )
 
-    dna_heavy_all = np.concatenate([heavy_atom_coords(residue) for residue in dna], axis=0)
-    A_label = np.zeros((len(protein), motif_len), dtype=np.float32)
-    site_label = np.zeros((len(protein),), dtype=np.float32)
+    A_base_label = np.zeros((len(protein), motif_len), dtype=np.float32)
+    A_backbone_label = np.zeros((len(protein), motif_len), dtype=np.float32)
 
     slot_base_coords = [base_heavy_atom_coords(dna[idx]) for idx in slot_to_dna_index]
+    slot_backbone_coords = [
+        backbone_heavy_atom_coords(dna[idx]) for idx in slot_to_dna_index
+    ]
     for i, residue in enumerate(protein):
         protein_heavy = heavy_atom_coords(residue)
-        if min_pairwise_distance(protein_heavy, dna_heavy_all) <= args.site_cutoff:
-            site_label[i] = 1.0
         for j, base_coords in enumerate(slot_base_coords):
-            if min_pairwise_distance(protein_heavy, base_coords) <= args.contact_cutoff:
-                A_label[i, j] = 1.0
+            if min_pairwise_distance(protein_heavy, base_coords) <= args.base_contact_cutoff:
+                A_base_label[i, j] = 1.0
+            if (
+                min_pairwise_distance(protein_heavy, slot_backbone_coords[j])
+                <= args.backbone_contact_cutoff
+            ):
+                A_backbone_label[i, j] = 1.0
+
+    A_contact_label = np.maximum(A_base_label, A_backbone_label).astype(np.float32)
+    site_label = A_contact_label.max(axis=1).astype(np.float32)
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -141,7 +150,10 @@ def process_complex(args: argparse.Namespace) -> None:
         edge_attr=edge_attr,
         esm2_repr=esm2_repr,
         pwm_target=pwm_target,
-        A_label=A_label,
+        A_label=A_base_label,
+        A_base_label=A_base_label,
+        A_backbone_label=A_backbone_label,
+        A_contact_label=A_contact_label,
         site_label=site_label,
         slot_to_dna_index=slot_to_dna_index,
         alignment_mode=np.asarray(alignment_meta["alignment_mode"]),
@@ -156,7 +168,10 @@ def process_complex(args: argparse.Namespace) -> None:
     )
     print(
         f"wrote {output} N={len(protein)} M={motif_len} E={residue_edges.shape[1]} "
-        f"A_pos={int(A_label.sum())} site_pos={int(site_label.sum())} "
+        f"A_base_pos={int(A_base_label.sum())} "
+        f"A_backbone_pos={int(A_backbone_label.sum())} "
+        f"A_contact_pos={int(A_contact_label.sum())} "
+        f"site_pos={int(site_label.sum())} "
         f"alignment={alignment_meta['alignment_mode']} chain={alignment_meta['alignment_chain']} "
         f"start={alignment_meta['alignment_start']} rc={alignment_meta['alignment_reverse_complement']} "
         f"score_mode={alignment_meta['alignment_score_mode']}"
@@ -192,8 +207,26 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--esm-npy", default=None, help="Precomputed [N,1280] ESM2 hidden .npy.")
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--ca-cutoff", type=float, default=14.0)
-    parser.add_argument("--contact-cutoff", type=float, default=4.5)
-    parser.add_argument("--site-cutoff", type=float, default=5.0)
+    parser.add_argument(
+        "--base-contact-cutoff",
+        "--contact-cutoff",
+        dest="base_contact_cutoff",
+        type=float,
+        default=4.5,
+        help="Residue heavy atom to DNA base heavy atom cutoff for A_base_label.",
+    )
+    parser.add_argument(
+        "--backbone-contact-cutoff",
+        type=float,
+        default=5.0,
+        help="Residue heavy atom to DNA sugar/phosphate heavy atom cutoff for A_backbone_label.",
+    )
+    parser.add_argument(
+        "--site-cutoff",
+        type=float,
+        default=5.0,
+        help="Deprecated; site_label is derived from A_contact_label.",
+    )
     parser.add_argument("--num-rbf", type=int, default=16)
     parser.add_argument("--rbf-max-distance", type=float, default=20.0)
     return parser

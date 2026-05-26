@@ -39,7 +39,8 @@ class ResidueBaseEnergyModel(nn.Module):
             nn.Linear(pair_hidden_dim, pair_hidden_dim),
             nn.SiLU(),
         )
-        self.A_head = nn.Linear(pair_hidden_dim, 1)
+        self.A_base_head = nn.Linear(pair_hidden_dim, 1)
+        self.A_backbone_head = nn.Linear(pair_hidden_dim, 1)
         self.E_head = nn.Linear(pair_hidden_dim, 4)
 
     def forward(
@@ -77,20 +78,29 @@ class ResidueBaseEnergyModel(nn.Module):
         pair_input = torch.cat([h_i, s_j, h_i * s_j, pos_j], dim=-1)
         z = self.pair_mlp(pair_input)
 
-        A_logits = self.A_head(z).squeeze(-1)
-        A = torch.sigmoid(A_logits)
+        A_base_logits = self.A_base_head(z).squeeze(-1)
+        A_backbone_logits = self.A_backbone_head(z).squeeze(-1)
+        A_base = torch.sigmoid(A_base_logits)
+        A_backbone = torch.sigmoid(A_backbone_logits)
+        A_contact = torch.maximum(A_base, A_backbone)
+        A_contact_logits = torch.maximum(A_base_logits, A_backbone_logits)
         E = self.E_head(z)
 
-        pwm_logits = torch.sum(A.unsqueeze(-1) * E, dim=0)
+        pwm_logits = torch.sum(A_base.unsqueeze(-1) * E, dim=0)
         pwm = torch.softmax(pwm_logits, dim=-1)
-        residue_energy = torch.logsumexp(E, dim=-1)
-        site_score = torch.max(A * residue_energy, dim=1).values
+        site_score = torch.max(A_contact_logits, dim=1).values
         site_prob = torch.sigmoid(site_score)
         return {
             "h": h,
             "coord": coord,
-            "A_logits": A_logits,
-            "A": A,
+            "A_logits": A_base_logits,
+            "A": A_base,
+            "A_base_logits": A_base_logits,
+            "A_base": A_base,
+            "A_backbone_logits": A_backbone_logits,
+            "A_backbone": A_backbone,
+            "A_contact_logits": A_contact_logits,
+            "A_contact": A_contact,
             "E": E,
             "pwm_logits": pwm_logits,
             "pwm": pwm,
@@ -102,4 +112,3 @@ class ResidueBaseEnergyModel(nn.Module):
 def build_model_from_config(config: dict) -> ResidueBaseEnergyModel:
     model_cfg = config["model"] if "model" in config else config
     return ResidueBaseEnergyModel(**model_cfg)
-

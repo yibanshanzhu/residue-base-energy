@@ -18,7 +18,8 @@ model:
 
 loss:
   lambda_pwm_teacher: 1.0
-  lambda_A: 1.0
+  lambda_A_base: 1.0
+  lambda_A_backbone: 1.0
   lambda_site: 0.5
   lambda_sparse: 0.01
   lambda_noncontact: 0.05

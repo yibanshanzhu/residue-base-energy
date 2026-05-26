@@ -33,6 +33,21 @@ def _parse_baseline(values: list[str] | None) -> list[tuple[str, str]]:
     return out
 
 
+def _print_map_metrics(title: str, y_true: np.ndarray, y_score: np.ndarray) -> dict:
+    top_l = int(y_true.sum()) if int(y_true.sum()) > 0 else y_true.shape[1]
+    metrics = {
+        "ap": average_precision(y_true, y_score),
+        "top_l_precision": top_l_precision(y_true, y_score, top_l=top_l),
+        "top_l": top_l,
+    }
+    print(f"\n{title}")
+    print("ap\ttop_l_precision\ttop_l")
+    print(
+        f"{metrics['ap']:.6f}\t{metrics['top_l_precision']:.6f}\t{metrics['top_l']}"
+    )
+    return metrics
+
+
 def evaluate(args: argparse.Namespace) -> None:
     target = _load_npz(args.target)
     pred = _load_npz(args.pred)
@@ -52,19 +67,22 @@ def evaluate(args: argparse.Namespace) -> None:
         )
 
     extra = {"pwm": rows}
-    if "A_label" in target and "A" in pred:
-        y_true = target["A_label"]
-        y_score = pred["A"]
-        top_l = int(y_true.sum()) if int(y_true.sum()) > 0 else y_true.shape[1]
-        amap = {
-            "ap": average_precision(y_true, y_score),
-            "top_l_precision": top_l_precision(y_true, y_score, top_l=top_l),
-            "top_l": top_l,
-        }
-        extra["A_map"] = amap
-        print("\nA_map")
-        print("ap\ttop_l_precision\ttop_l")
-        print(f"{amap['ap']:.6f}\t{amap['top_l_precision']:.6f}\t{amap['top_l']}")
+    if "A_base_label" in target and "A_base" in pred:
+        extra["A_base_map"] = _print_map_metrics(
+            "A_base_map", target["A_base_label"], pred["A_base"]
+        )
+    elif "A_label" in target and "A" in pred:
+        extra["A_base_map"] = _print_map_metrics("A_base_map", target["A_label"], pred["A"])
+
+    if "A_backbone_label" in target and "A_backbone" in pred:
+        extra["A_backbone_map"] = _print_map_metrics(
+            "A_backbone_map", target["A_backbone_label"], pred["A_backbone"]
+        )
+
+    if "A_contact_label" in target and "A_contact" in pred:
+        extra["A_contact_map"] = _print_map_metrics(
+            "A_contact_map", target["A_contact_label"], pred["A_contact"]
+        )
 
     if "site_label" in target and "site_prob" in pred:
         site = binary_metrics(target["site_label"], pred["site_prob"])
@@ -99,4 +117,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
