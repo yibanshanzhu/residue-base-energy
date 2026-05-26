@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 import argparse
-import pickle
 import subprocess
 import sys
 import urllib.request
 from pathlib import Path
 
-import numpy as np
-
-from rbe.data.pwm import normalize_pwm
+from rbe.data.pwm import normalize_pwm, read_pwm
 
 
-BASES = "ACGT"
+DEFAULT_CURATED_ROOT = (
+    Path(__file__).resolve().parents[1] / "resources" / "deeppbs_curated"
+)
 
 
 def parse_deeppbs_entry(entry: str) -> tuple[str, str, str]:
@@ -28,36 +27,38 @@ def parse_deeppbs_entry(entry: str) -> tuple[str, str, str]:
     return pdb_id, protein_chain, pwm_id
 
 
-def pwm_information_content(pwm: np.ndarray, eps: float = 1e-8) -> np.ndarray:
-    pwm = normalize_pwm(pwm, eps=eps)
-    return 2.0 + np.sum(pwm * np.log2(pwm), axis=1)
-
-
-def load_deeppbs_pwm(
-    deeppbs_root: Path, pwm_id: str, trim_ic_threshold: float
-) -> np.ndarray:
-    pwm_pickle = deeppbs_root / "deeppbs" / "_data" / "pwms.pickle"
-    with pwm_pickle.open("rb") as handle:
-        pwm_dict = pickle.load(handle)
-    if pwm_id not in pwm_dict:
-        raise KeyError(f"PWM id not found in DeepPBS pwms.pickle: {pwm_id}")
-
-    motif = pwm_dict[pwm_id]
-    raw = np.asarray([motif.pwm[base] for base in BASES], dtype=np.float32).T
-    pwm = normalize_pwm(raw)
-    ic = pwm_information_content(pwm)
-    keep = np.where(ic > trim_ic_threshold)[0]
-    if keep.size == 0:
-        return pwm
-    return pwm[int(keep[0]) : int(keep[-1]) + 1]
-
-
-def write_pwm(path: Path, pwm: np.ndarray) -> None:
+def write_pwm(path: Path, pwm) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w") as handle:
         handle.write("A C G T\n")
         for row in normalize_pwm(pwm):
             handle.write("\t".join(f"{float(value):.8f}" for value in row) + "\n")
+
+
+def resolve_fold_file(fold_file: str, curated_root: Path) -> Path:
+    path = Path(fold_file)
+    candidates = [path]
+    if not path.is_absolute():
+        candidates.extend(
+            [
+                curated_root / "folds" / fold_file,
+                curated_root / "folds" / Path(fold_file).name,
+            ]
+        )
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    raise FileNotFoundError(
+        f"Cannot find fold file {fold_file}. Tried: "
+        + ", ".join(str(candidate) for candidate in candidates)
+    )
+
+
+def curated_pwm_path(curated_root: Path, pwm_id: str) -> Path:
+    path = curated_root / "pwms" / f"{pwm_id}.txt"
+    if not path.exists():
+        raise FileNotFoundError(f"Curated PWM not found for {pwm_id}: {path}")
+    return path
 
 
 def download_pdb(pdb_id: str, path: Path) -> None:
@@ -113,10 +114,8 @@ def run_process_complex(
 
 
 def prepare(args: argparse.Namespace) -> None:
-    deeppbs_root = Path(args.deeppbs_root).resolve()
-    fold_file = Path(args.fold_file)
-    if not fold_file.is_absolute():
-        fold_file = deeppbs_root / fold_file
+    curated_root = Path(args.curated_root).resolve()
+    fold_file = resolve_fold_file(args.fold_file, curated_root)
 
     out_root = Path(args.out_root)
     pdb_dir = out_root / "raw" / "pdb"
@@ -153,9 +152,7 @@ def prepare(args: argparse.Namespace) -> None:
 
         try:
             download_pdb(pdb_id, pdb_path)
-            pwm = load_deeppbs_pwm(
-                deeppbs_root, pwm_id, trim_ic_threshold=args.trim_ic_threshold
-            )
+            pwm = read_pwm(curated_pwm_path(curated_root, pwm_id))
             write_pwm(pwm_path, pwm)
             result = run_process_complex(
                 pdb_path=pdb_path,
@@ -204,10 +201,10 @@ def prepare(args: argparse.Namespace) -> None:
 
 def build_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Prepare an RBE smoke-test dataset from DeepPBS fold mappings."
+        description="Prepare an RBE smoke-test dataset from vendored DeepPBS mappings."
     )
-    parser.add_argument("--deeppbs-root", default="../DeepPBS")
-    parser.add_argument("--fold-file", default="run/folds/valid0.txt")
+    parser.add_argument("--curated-root", default=str(DEFAULT_CURATED_ROOT))
+    parser.add_argument("--fold-file", default="valid0.txt")
     parser.add_argument("--out-root", default="data/deeppbs_smoke")
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--max-attempts", type=int, default=0)
@@ -217,7 +214,6 @@ def build_argparser() -> argparse.ArgumentParser:
         choices=["deeppbs_ic_pcc", "ic_log_likelihood", "log_likelihood"],
         default="deeppbs_ic_pcc",
     )
-    parser.add_argument("--trim-ic-threshold", type=float, default=0.5)
     parser.add_argument(
         "--allow-multi-char-chain",
         action="store_true",

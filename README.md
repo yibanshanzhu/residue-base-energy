@@ -23,7 +23,7 @@ PWM[j,b] = softmax_b Σ_i A_base(i,j) * E(i,j,b)
 | 文档 | 内容 |
 |---|---|
 | [`docs/idea_from_prior_work.md`](docs/idea_from_prior_work.md) | 说明本项目如何从 rCLAMPS、DeepPBS、EquiPPIS/EquiPNAS、MegSite 等方法抽象出来 |
-| [`docs/deeppbs_data_alignment.md`](docs/deeppbs_data_alignment.md) | 用 DeepPBS curated mapping 自动下载、导出 PWM、对齐并生成训练数据 |
+| [`docs/deeppbs_data_alignment.md`](docs/deeppbs_data_alignment.md) | 用仓库内置 DeepPBS curated mapping 自动下载 PDB、对齐并生成训练数据 |
 
 ## 安装
 
@@ -138,18 +138,17 @@ python -m rbe.data.process_complex \
 
 ## DeepPBS 数据准备
 
-如果本机同时有 DeepPBS 仓库，可以直接复用它整理好的 `PDB_chain -> PWM ID` 映射：
+仓库已经内置 DeepPBS curated mapping 和导出的 PWM，不需要 clone 或调用 DeepPBS 仓库：
 
 ```bash
 python scripts/prepare_deeppbs_smoke.py \
-  --deeppbs-root ../DeepPBS \
-  --fold-file run/folds/valid0.txt \
+  --fold-file valid0.txt \
   --out-root data/deeppbs_smoke \
   --limit 20 \
   --device cuda
 ```
 
-这会自动下载 PDB、从 DeepPBS `pwms.pickle` 导出 PWM、用 DeepPBS-style `deeppbs_ic_pcc` 对齐并生成：
+这会自动下载 PDB、读取内置 PWM、用 DeepPBS-style `deeppbs_ic_pcc` 对齐并生成：
 
 ```text
 data/deeppbs_smoke/train/*.npz

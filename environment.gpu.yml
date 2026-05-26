@@ -14,4 +14,3 @@ dependencies:
   - pytorch-cuda=12.1
   - pip:
       - fair-esm>=2.0
-      - biopython>=1.79

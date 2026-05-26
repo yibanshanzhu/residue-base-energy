@@ -8,7 +8,7 @@ DeepPBS 不是人工给每个 PWM column 找 DNA base。
 
 | 步骤 | DeepPBS 怎么做 | 我们怎么复用 |
 |---|---|---|
-| PDB-chain 到 PWM | 用 curated mapping，例如 `run/folds/*.txt` 里的 `pdb_chain_pwmid.npz` | 直接解析这些文件 |
+| PDB-chain 到 PWM | 用 curated mapping，例如 `run/folds/*.txt` 里的 `pdb_chain_pwmid.npz` | 已内置到 `resources/deeppbs_curated/folds/` |
 | PWM 到 complex DNA | 在 DNA 正反链上滑窗，选分数最高的 start/strand | `process_complex --alignment-score deeppbs_ic_pcc` |
 
 所以真正需要人工确认的只有：
@@ -17,7 +17,7 @@ DeepPBS 不是人工给每个 PWM column 找 DNA base。
 这个 PDB protein chain 对应哪个 TF/PWM
 ```
 
-这一步 DeepPBS 已经在 fold 文件和 `jaspar_h11mo_cluster_wise_dna_containing_dataset.npy` 里整理过。
+这一步 DeepPBS 已经整理过；我们把需要的 fold 文件和 PWM 数值直接 vendored 到本仓库。
 
 ## DeepPBS 的对齐逻辑
 
@@ -44,7 +44,7 @@ forward strand / reverse-complement strand 都试
 
 ## 我们的自动流程
 
-服务器上如果旁边有 DeepPBS 仓库：
+服务器上只需要本仓库：
 
 ```bash
 cd ~/residue-base-energy
@@ -52,12 +52,11 @@ git pull
 pip install -e .
 ```
 
-用 DeepPBS 的 fold 文件直接准备 20 个样本：
+用内置 curated fold 文件直接准备 20 个样本：
 
 ```bash
 python scripts/prepare_deeppbs_smoke.py \
-  --deeppbs-root ../DeepPBS \
-  --fold-file run/folds/valid0.txt \
+  --fold-file valid0.txt \
   --out-root data/deeppbs_smoke \
   --limit 20 \
   --device cuda
@@ -69,8 +68,7 @@ python scripts/prepare_deeppbs_smoke.py \
 |---|---|
 | 解析 `pdb_chain_pwmid.npz` | `sample_id / pdb_id / protein_chain / pwm_id` |
 | 下载 RCSB PDB | `data/deeppbs_smoke/raw/pdb/*.pdb` |
-| 从 DeepPBS `pwms.pickle` 导出 PWM | `data/deeppbs_smoke/raw/pwm/*.txt` |
-| DeepPBS-style PWM trimming | 去掉 IC `<=0.5` 的两端弱列 |
+| 读取内置 trimmed PWM | `data/deeppbs_smoke/raw/pwm/*.txt` |
 | 调用 `process_complex` | `data/deeppbs_smoke/train/*.npz` |
 | 写 manifest | `data/deeppbs_smoke/train_manifest.txt` |
 | 记录失败样本 | `data/deeppbs_smoke/failed.tsv` |
@@ -120,7 +118,7 @@ DeepPBS 允许部分 overlap，并用 mask 训练。
 | 项 | DeepPBS | RBE V1 |
 |---|---|---|
 | PWM-DNA 对齐 | 可 partial overlap + mask | 需要处理后的 PWM 能完整落在某条 DNA chain 上 |
-| PWM trimming | 有 | 脚本已复用 IC `0.5` 阈值 |
+| PWM trimming | 有 | 内置 PWM 已按 IC `0.5` 阈值裁剪 |
 | 对齐分数 | IC-weighted PCC | 已加入 `deeppbs_ic_pcc` |
 | DNA 坐标 | 训练和推理都用 complex | 只训练用 complex，推理不用 DNA |
 

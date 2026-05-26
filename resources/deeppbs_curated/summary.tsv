@@ -1,0 +1,6 @@
+field	value
+fold_entries	2745
+unique_samples	653
+unique_pdb	429
+unique_pwm	262
+pwm_trim_ic_threshold	0.5
