@@ -44,7 +44,14 @@ def test_forward_and_loss_shapes():
     losses = compute_rbe_losses(
         out,
         sample,
-        {"lambda_A": 1.0, "lambda_site": 0.5, "lambda_sparse": 0.01},
+        {
+            "lambda_pwm_teacher": 1.0,
+            "lambda_A": 1.0,
+            "lambda_site": 0.5,
+            "lambda_sparse": 0.01,
+            "lambda_noncontact": 0.05,
+        },
     )
     assert torch.isfinite(losses["loss"])
-
+    assert torch.isfinite(losses["loss_pwm_teacher"])
+    assert torch.isfinite(losses["loss_noncontact"])

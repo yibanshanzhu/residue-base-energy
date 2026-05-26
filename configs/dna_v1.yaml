@@ -17,9 +17,11 @@ model:
   coord_update_scale: 0.1
 
 loss:
+  lambda_pwm_teacher: 1.0
   lambda_A: 1.0
   lambda_site: 0.5
   lambda_sparse: 0.01
+  lambda_noncontact: 0.05
 
 optim:
   lr: 0.0002

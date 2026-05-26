@@ -53,10 +53,19 @@ def train(args: argparse.Namespace) -> None:
     out_dir = ensure_dir(args.out_dir)
     best_loss = float("inf")
 
-    print("epoch\tloss\tloss_pwm\tloss_A\tloss_site\tloss_sparse")
+    metric_keys = [
+        "loss",
+        "loss_pwm",
+        "loss_pwm_teacher",
+        "loss_A",
+        "loss_site",
+        "loss_sparse",
+        "loss_noncontact",
+    ]
+    print("\t".join(["epoch"] + metric_keys))
     for epoch in range(1, int(config["optim"]["epochs"]) + 1):
         model.train()
-        totals = {"loss": 0.0, "loss_pwm": 0.0, "loss_A": 0.0, "loss_site": 0.0, "loss_sparse": 0.0}
+        totals = {key: 0.0 for key in metric_keys}
         for batch in loader:
             sample = to_device(batch[0], device)
             motif_len = int(sample["pwm_target"].shape[0])
@@ -77,11 +86,7 @@ def train(args: argparse.Namespace) -> None:
                 totals[key] += value
 
         metrics = {key: value / len(dataset) for key, value in totals.items()}
-        print(
-            f"{epoch}\t{metrics['loss']:.6f}\t{metrics['loss_pwm']:.6f}\t"
-            f"{metrics['loss_A']:.6f}\t{metrics['loss_site']:.6f}\t"
-            f"{metrics['loss_sparse']:.6f}"
-        )
+        print("\t".join([str(epoch)] + [f"{metrics[key]:.6f}" for key in metric_keys]))
         ckpt = {
             "model_state": model.state_dict(),
             "config": config,

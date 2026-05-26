@@ -119,6 +119,17 @@ python -m rbe.data.process_complex \
 | `slot_to_dna_index` | `M` | motif slot 对应 DNA residue index |
 | `alignment_*` | scalar | 自动/手动 PWM-DNA 对齐信息 |
 
+训练 loss：
+
+| loss | 作用 |
+|---|---|
+| `L_pwm` | 用预测 `A(i,j)` 门控 `E(i,j,b)` 还原 PWM |
+| `L_pwm_teacher` | 用真实 `A_label(i,j)` 门控 `E(i,j,b)` 还原 PWM，让 `E` 被真实接触 residue 锚住 |
+| `L_A` | 监督 `A(i,j)` 接近真实 residue-base contact |
+| `L_site` | 监督 protein-side binding site |
+| `L_sparse` | 防止 `A(i,j)` 到处变大 |
+| `L_noncontact` | 惩罚非接触 residue 对 PWM 的贡献 |
+
 ## 训练
 
 ```bash
