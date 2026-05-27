@@ -58,7 +58,7 @@ python -m rbe.train \
 
 ## 数据处理
 
-默认会自动把 PWM 对齐到选中 DNA chain 的 sequence：每条 DNA chain 的正向和反向互补都会尝试，选择 **IC-weighted log-likelihood** 最高的 `start/strand`，然后生成 `slot_to_dna_index`。
+默认会做 contact-constrained PWM-DNA 对齐：枚举每条 DNA chain 的正向和反向互补 `start/strand`，先丢掉 motif window 没有 protein-DNA contact 的候选，再从剩余候选里选 sequence score 最高的窗口，生成 `slot_to_dna_index`。
 
 ```bash
 python -m rbe.data.process_complex \
@@ -91,6 +91,17 @@ python -m rbe.data.process_complex \
   --protein-chains A \
   --alignment-score deeppbs_ic_pcc \
   --output data/train/sample.deeppbs_align.npz
+```
+
+如需复现旧的纯 sequence alignment：
+
+```bash
+python -m rbe.data.process_complex \
+  --pdb complex.pdb \
+  --pwm pwm.txt \
+  --protein-chains A \
+  --alignment-contact-policy sequence_only \
+  --output data/train/sample.sequence_only.npz
 ```
 
 也可以手动覆盖 motif slot 到 DNA residue index：

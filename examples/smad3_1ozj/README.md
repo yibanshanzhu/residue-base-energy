@@ -24,11 +24,12 @@ python -m rbe.data.process_complex \
 预期预处理输出应类似：
 
 ```text
-alignment=auto_pwm_dna
+alignment=contact_constrained_pwm_dna
 chain=C
 start=2
 rc=True
 score_mode=ic_log_likelihood
+contact_candidates=16/16
 A_base_pos=9
 A_backbone_pos=13
 A_contact_pos=19

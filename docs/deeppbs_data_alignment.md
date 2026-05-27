@@ -9,7 +9,7 @@ DeepPBS 不是人工给每个 PWM column 找 DNA base。
 | 步骤 | DeepPBS 怎么做 | 我们怎么复用 |
 |---|---|---|
 | PDB-chain 到 PWM | 用 curated mapping，例如 `run/folds/*.txt` 里的 `pdb_chain_pwmid.npz` | 已内置到 `resources/deeppbs_curated/folds/` |
-| PWM 到 complex DNA | 在 DNA 正反链上滑窗，选分数最高的 start/strand | `process_complex --alignment-score deeppbs_ic_pcc` |
+| PWM 到 complex DNA | 在 DNA 正反链上滑窗，选分数最高的 start/strand | 先要求 window 有 contact，再按 sequence score 选 |
 
 所以真正需要人工确认的只有：
 
@@ -42,6 +42,22 @@ forward strand / reverse-complement strand 都试
 选 IC-weighted PCC 最高的 start/strand
 ```
 
+这个步骤本身不是 contact-aware。RBE V1 在此基础上加了一条结构约束：
+
+```text
+candidate start/strand
+        ↓
+先要求 A_contact_pos >= 1 且 site_pos >= 1
+        ↓
+再选 sequence score 最高的候选
+```
+
+也就是说，当前 RBE 的默认 `alignment_mode` 是：
+
+```text
+contact_constrained_pwm_dna
+```
+
 ## 我们的自动流程
 
 服务器上只需要本仓库：
@@ -71,7 +87,7 @@ python scripts/prepare_deeppbs_smoke.py \
 | 解析 `pdb_chain_pwmid.npz` | `sample_id / pdb_id / protein_chain / pwm_id` |
 | 下载 RCSB PDB | `data/deeppbs_smoke/raw/pdb/*.pdb` |
 | 读取内置 trimmed PWM | `data/deeppbs_smoke/raw/pwm/*.txt` |
-| 调用 `process_complex` | `data/deeppbs_smoke/train/*.npz` |
+| 调用 contact-constrained `process_complex` | `data/deeppbs_smoke/train/*.npz` |
 | 过滤空 contact/site 标签 | 默认要求 `A_contact_pos >= 1` 且 `site_pos >= 1` |
 | 写 manifest | `data/deeppbs_smoke/train_manifest.txt` |
 | 记录失败样本 | `data/deeppbs_smoke/failed.tsv` |
@@ -96,11 +112,12 @@ A_base_pos=...
 A_backbone_pos=...
 A_contact_pos=...
 site_pos=...
-alignment=auto_pwm_dna
+alignment=contact_constrained_pwm_dna
 chain=...
 start=...
 rc=...
 score_mode=deeppbs_ic_pcc
+contact_candidates=...
 ```
 
 快速判断：
@@ -122,7 +139,7 @@ DeepPBS 允许部分 overlap，并用 mask 训练。
 |---|---|---|
 | PWM-DNA 对齐 | 可 partial overlap + mask | 需要处理后的 PWM 能完整落在某条 DNA chain 上 |
 | PWM trimming | 有 | 内置 PWM 已按 IC `0.5` 阈值裁剪 |
-| 对齐分数 | IC-weighted PCC | 已加入 `deeppbs_ic_pcc` |
+| 对齐分数 | IC-weighted PCC | 默认先过滤无 contact window，再按 score 选 |
 | DNA 坐标 | 训练和推理都用 complex | 只训练用 complex，推理不用 DNA |
 
-所以这个流程不是完整复刻 DeepPBS 训练集处理，而是复用它最关键的 **PWM 映射 + PWM-DNA 自动对齐**。
+所以这个流程不是完整复刻 DeepPBS 训练集处理，而是复用它最关键的 **PWM 映射**，并把 PWM-DNA 自动对齐升级成 contact-aware。

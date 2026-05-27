@@ -88,6 +88,9 @@ def run_process_complex(
     out_npz: Path,
     device: str,
     alignment_score: str,
+    min_base_pairs: int,
+    min_contact_pairs: int,
+    min_site_residues: int,
 ) -> subprocess.CompletedProcess:
     cmd = [
         sys.executable,
@@ -105,6 +108,12 @@ def run_process_complex(
         device,
         "--alignment-score",
         alignment_score,
+        "--alignment-min-base-pairs",
+        str(min_base_pairs),
+        "--alignment-min-contact-pairs",
+        str(min_contact_pairs),
+        "--alignment-min-site-residues",
+        str(min_site_residues),
     ]
     return subprocess.run(
         cmd,
@@ -184,6 +193,9 @@ def prepare(args: argparse.Namespace) -> None:
                 out_npz=out_npz,
                 device=args.device,
                 alignment_score=args.alignment_score,
+                min_base_pairs=args.min_base_pairs,
+                min_contact_pairs=args.min_contact_pairs,
+                min_site_residues=args.min_site_residues,
             )
             if result.returncode != 0:
                 failures.append((entry, result.stdout.strip().replace("\n", " | ")))

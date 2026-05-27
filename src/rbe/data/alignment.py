@@ -99,9 +99,27 @@ def align_pwm_to_dna(
     dna_residues: list[ResidueRecord],
     score_mode: str = "ic_log_likelihood",
 ) -> PWMAlignment:
+    candidates = enumerate_pwm_to_dna_alignments(
+        pwm, dna_residues, score_mode=score_mode
+    )
+    if not candidates:
+        motif_len = normalize_pwm(pwm).shape[0]
+        lengths = {chain: len(seq) for chain, seq, _ in dna_chains_with_indices(dna_residues)}
+        raise ValueError(
+            f"No selected DNA chain is long enough for PWM length {motif_len}. "
+            f"DNA chain lengths: {lengths}"
+        )
+    return max(candidates, key=lambda candidate: candidate.score)
+
+
+def enumerate_pwm_to_dna_alignments(
+    pwm: np.ndarray,
+    dna_residues: list[ResidueRecord],
+    score_mode: str = "ic_log_likelihood",
+) -> list[PWMAlignment]:
     pwm = normalize_pwm(pwm)
     motif_len = pwm.shape[0]
-    best: PWMAlignment | None = None
+    alignments = []
 
     for chain, sequence, indices in dna_chains_with_indices(dna_residues):
         if len(sequence) < motif_len:
@@ -126,13 +144,6 @@ def align_pwm_to_dna(
                     slot_to_dna_index=slot_to_dna_index,
                     aligned_sequence=window,
                 )
-                if best is None or candidate.score > best.score:
-                    best = candidate
+                alignments.append(candidate)
 
-    if best is None:
-        lengths = {chain: len(seq) for chain, seq, _ in dna_chains_with_indices(dna_residues)}
-        raise ValueError(
-            f"No selected DNA chain is long enough for PWM length {motif_len}. "
-            f"DNA chain lengths: {lengths}"
-        )
-    return best
+    return alignments

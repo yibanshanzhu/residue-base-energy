@@ -350,7 +350,7 @@ monomer protein PDB + motif length M
 |---|---|
 | DNA/RNA | 只做 DNA |
 | motif length | 需要显式给 `M` |
-| PWM-DNA 对齐 | 已加入 DeepPBS-style 自动 sequence alignment；默认用 IC-weighted log-likelihood，仍允许手动覆盖 |
+| PWM-DNA 对齐 | 默认 contact-constrained alignment；先要求 motif window 有 contact，再按 sequence score 选，仍允许手动覆盖 |
 | reverse-complement | 预处理会尝试 DNA chain 的反向互补；训练 loss 本身还不是 RC-aware |
 | affinity / mutation effect | 还没做 |
 | protein input | 需要 monomer PDB，不做 sequence-only |
