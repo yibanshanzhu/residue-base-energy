@@ -222,6 +222,23 @@ python -m rbe.eval.evaluate_pwm \
   --baseline rCLAMPS=predictions/sample_rclamps.npz
 ```
 
+批量评估 manifest，并自动生成缺失预测：
+
+```bash
+python -m rbe.eval.evaluate_manifest \
+  --manifest data/deeppbs_smoke/train_manifest.txt \
+  --pred-dir runs/deeppbs_smoke/preds \
+  --checkpoint runs/deeppbs_smoke/best.pt \
+  --device cuda
+```
+
+输出：
+
+```text
+runs/deeppbs_smoke/preds/eval_per_sample.tsv
+runs/deeppbs_smoke/preds/eval_summary.tsv
+```
+
 评估分三条线：
 
 | 线 | 指标 |

@@ -20,6 +20,7 @@ rbe-process-complex = "rbe.data.process_complex:main"
 rbe-train = "rbe.train:main"
 rbe-predict = "rbe.predict:main"
 rbe-evaluate-pwm = "rbe.eval.evaluate_pwm:main"
+rbe-evaluate-manifest = "rbe.eval.evaluate_manifest:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
