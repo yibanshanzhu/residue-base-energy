@@ -11,6 +11,7 @@ import torch
 from rbe.data.dataset import RBEDataset, to_device
 from rbe.eval.metrics import (
     average_precision,
+    best_threshold_metrics,
     binary_metrics,
     pwm_metrics,
     top_l_precision,
@@ -120,6 +121,13 @@ def numeric_keys(rows: Iterable[dict]) -> list[str]:
         "site_ap",
         "site_mcc",
         "site_f1",
+        "site_global_ap_diagnostic",
+        "site_global_f1_at_0.5_diagnostic",
+        "site_global_mcc_at_0.5_diagnostic",
+        "site_global_best_f1_diagnostic",
+        "site_global_best_f1_threshold_diagnostic",
+        "site_global_best_mcc_diagnostic",
+        "site_global_best_mcc_threshold_diagnostic",
     ]
     ordered = [key for key in preferred if key in keys]
     ordered.extend(sorted(keys - set(ordered)))
@@ -148,6 +156,35 @@ def summarize_rows(rows: list[dict]) -> list[dict]:
             }
         )
     return summary
+
+
+def global_site_summary_rows(samples: list[Path], pred_dir: Path, suffix: str) -> list[dict]:
+    labels = []
+    scores = []
+    for sample_path in samples:
+        target = load_npz(sample_path)
+        pred = load_npz(pred_path_for_sample(sample_path, pred_dir, suffix))
+        if "site_label" in target and "site_prob" in pred:
+            labels.append(target["site_label"].reshape(-1))
+            scores.append(pred["site_prob"].reshape(-1))
+    if not labels:
+        return []
+
+    metrics = best_threshold_metrics(np.concatenate(labels), np.concatenate(scores))
+    name_map = {
+        "ap": "site_global_ap_diagnostic",
+        "f1_at_0.5": "site_global_f1_at_0.5_diagnostic",
+        "mcc_at_0.5": "site_global_mcc_at_0.5_diagnostic",
+        "best_f1_diagnostic": "site_global_best_f1_diagnostic",
+        "best_f1_threshold_diagnostic": "site_global_best_f1_threshold_diagnostic",
+        "best_mcc_diagnostic": "site_global_best_mcc_diagnostic",
+        "best_mcc_threshold_diagnostic": "site_global_best_mcc_threshold_diagnostic",
+    }
+    n = int(sum(label.size for label in labels))
+    return [
+        {"metric": name_map[key], "mean": float(value), "std": 0.0, "n": n}
+        for key, value in metrics.items()
+    ]
 
 
 def write_rows_tsv(path: str | Path, rows: list[dict]) -> None:
@@ -256,6 +293,7 @@ def evaluate_manifest(args: argparse.Namespace) -> None:
         rows.append(evaluate_pair(sample_path, pred_path))
 
     summary = summarize_rows(rows)
+    summary.extend(global_site_summary_rows(samples, pred_dir, args.pred_suffix))
     per_sample_tsv = (
         Path(args.per_sample_tsv)
         if args.per_sample_tsv

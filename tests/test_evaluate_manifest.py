@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from rbe.eval.evaluate_manifest import evaluate_pair, summarize_rows
+from rbe.eval.metrics import best_threshold_metrics
 
 
 def _write_npz_pair(tmp_path, name: str):
@@ -51,3 +52,14 @@ def test_evaluate_pair_and_summary(tmp_path):
     by_metric = {item["metric"]: item for item in summary}
     assert by_metric["pwm_kl"]["n"] == 2
     assert by_metric["site_f1"]["mean"] == 1.0
+
+
+def test_best_threshold_metrics_are_global_diagnostics():
+    y_true = np.asarray([1, 1, 0, 0], dtype=np.int64)
+    y_score = np.asarray([0.42, 0.38, 0.10, 0.05], dtype=np.float32)
+
+    metrics = best_threshold_metrics(y_true, y_score)
+
+    assert metrics["f1_at_0.5"] == 0.0
+    assert metrics["best_f1_diagnostic"] == 1.0
+    assert metrics["best_f1_threshold_diagnostic"] < 0.5

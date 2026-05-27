@@ -94,3 +94,41 @@ def binary_metrics(y_true: np.ndarray, y_score: np.ndarray, threshold: float = 0
         "f1": float(f1),
     }
 
+
+def best_threshold_metrics(y_true: np.ndarray, y_score: np.ndarray) -> dict:
+    y_true = y_true.reshape(-1).astype(np.int64)
+    y_score = y_score.reshape(-1).astype(np.float64)
+    thresholds = np.unique(np.concatenate([y_score, np.asarray([0.5])]))
+
+    best_f1 = -1.0
+    best_f1_threshold = 0.5
+    best_mcc = -1.0
+    best_mcc_threshold = 0.5
+
+    for threshold in thresholds:
+        metrics = binary_metrics(y_true, y_score, threshold=float(threshold))
+        f1 = metrics["f1"]
+        mcc = metrics["mcc"]
+        if f1 > best_f1 or (
+            np.isclose(f1, best_f1)
+            and abs(float(threshold) - 0.5) < abs(best_f1_threshold - 0.5)
+        ):
+            best_f1 = f1
+            best_f1_threshold = float(threshold)
+        if mcc > best_mcc or (
+            np.isclose(mcc, best_mcc)
+            and abs(float(threshold) - 0.5) < abs(best_mcc_threshold - 0.5)
+        ):
+            best_mcc = mcc
+            best_mcc_threshold = float(threshold)
+
+    at_05 = binary_metrics(y_true, y_score, threshold=0.5)
+    return {
+        "ap": at_05["ap"],
+        "f1_at_0.5": at_05["f1"],
+        "mcc_at_0.5": at_05["mcc"],
+        "best_f1_diagnostic": float(best_f1),
+        "best_f1_threshold_diagnostic": best_f1_threshold,
+        "best_mcc_diagnostic": float(best_mcc),
+        "best_mcc_threshold_diagnostic": best_mcc_threshold,
+    }

@@ -239,6 +239,8 @@ runs/deeppbs_smoke/preds/eval_per_sample.tsv
 runs/deeppbs_smoke/preds/eval_summary.tsv
 ```
 
+`eval_summary.tsv` 里 `site_global_*_diagnostic` 是把整个 manifest 的 residue 拼在一起后搜索一个全局阈值，只用于判断 site score 是否校准不好；正式测试集不能用测试标签选阈值。
+
 评估分三条线：
 
 | 线 | 指标 |
