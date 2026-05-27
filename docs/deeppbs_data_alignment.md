@@ -59,6 +59,8 @@ python scripts/prepare_deeppbs_smoke.py \
   --fold-file valid0.txt \
   --out-root data/deeppbs_smoke \
   --limit 20 \
+  --min-contact-pairs 1 \
+  --min-site-residues 1 \
   --device cuda
 ```
 
@@ -70,6 +72,7 @@ python scripts/prepare_deeppbs_smoke.py \
 | 下载 RCSB PDB | `data/deeppbs_smoke/raw/pdb/*.pdb` |
 | 读取内置 trimmed PWM | `data/deeppbs_smoke/raw/pwm/*.txt` |
 | 调用 `process_complex` | `data/deeppbs_smoke/train/*.npz` |
+| 过滤空 contact/site 标签 | 默认要求 `A_contact_pos >= 1` 且 `site_pos >= 1` |
 | 写 manifest | `data/deeppbs_smoke/train_manifest.txt` |
 | 记录失败样本 | `data/deeppbs_smoke/failed.tsv` |
 

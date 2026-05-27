@@ -145,6 +145,8 @@ python scripts/prepare_deeppbs_smoke.py \
   --fold-file valid0.txt \
   --out-root data/deeppbs_smoke \
   --limit 20 \
+  --min-contact-pairs 1 \
+  --min-site-residues 1 \
   --device cuda
 ```
 
@@ -155,6 +157,8 @@ data/deeppbs_smoke/train/*.npz
 data/deeppbs_smoke/train_manifest.txt
 data/deeppbs_smoke/failed.tsv
 ```
+
+默认会过滤 `A_contact_pos=0` 或 `site_pos=0` 的样本，因为这类样本没有可学习的 contact/site 标签。
 
 训练 loss：
 

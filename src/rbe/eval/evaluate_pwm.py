@@ -34,7 +34,17 @@ def _parse_baseline(values: list[str] | None) -> list[tuple[str, str]]:
 
 
 def _print_map_metrics(title: str, y_true: np.ndarray, y_score: np.ndarray) -> dict:
-    top_l = int(y_true.sum()) if int(y_true.sum()) > 0 else y_true.shape[1]
+    top_l = int(y_true.sum())
+    if top_l <= 0:
+        metrics = {
+            "ap": 0.0,
+            "top_l_precision": 0.0,
+            "top_l": 0,
+        }
+        print(f"\n{title}")
+        print("ap\ttop_l_precision\ttop_l")
+        print("0.000000\t0.000000\t0")
+        return metrics
     metrics = {
         "ap": average_precision(y_true, y_score),
         "top_l_precision": top_l_precision(y_true, y_score, top_l=top_l),

@@ -59,7 +59,13 @@ def pred_path_for_sample(
 
 
 def map_metrics(y_true: np.ndarray, y_score: np.ndarray) -> dict:
-    top_l = int(y_true.sum()) if int(y_true.sum()) > 0 else y_true.shape[1]
+    top_l = int(y_true.sum())
+    if top_l <= 0:
+        return {
+            "ap": 0.0,
+            "top_l_precision": 0.0,
+            "top_l": 0.0,
+        }
     return {
         "ap": average_precision(y_true, y_score),
         "top_l_precision": top_l_precision(y_true, y_score, top_l=top_l),
@@ -75,6 +81,12 @@ def evaluate_pair(target_path: str | Path, pred_path: str | Path) -> dict:
         "target_path": str(target_path),
         "pred_path": str(pred_path),
     }
+    if "site_label" in target:
+        row["n_residue"] = float(target["site_label"].size)
+        row["site_pos"] = float(target["site_label"].sum())
+    for label_key in ("A_base_label", "A_backbone_label", "A_contact_label"):
+        if label_key in target:
+            row[f"{label_key[:-6]}_pos"] = float(target[label_key].sum())
 
     for key, value in pwm_metrics(get_pwm(target), get_pwm(pred)).items():
         row[f"pwm_{key}"] = value
@@ -128,6 +140,11 @@ def numeric_keys(rows: Iterable[dict]) -> list[str]:
         "site_global_best_f1_threshold_diagnostic",
         "site_global_best_mcc_diagnostic",
         "site_global_best_mcc_threshold_diagnostic",
+        "n_residue",
+        "site_pos",
+        "A_base_pos",
+        "A_backbone_pos",
+        "A_contact_pos",
     ]
     ordered = [key for key in preferred if key in keys]
     ordered.extend(sorted(keys - set(ordered)))

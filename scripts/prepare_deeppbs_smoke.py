@@ -6,6 +6,8 @@ import sys
 import urllib.request
 from pathlib import Path
 
+import numpy as np
+
 from rbe.data.pwm import normalize_pwm, read_pwm
 
 
@@ -113,6 +115,24 @@ def run_process_complex(
     )
 
 
+def label_counts(npz_path: str | Path) -> dict[str, int]:
+    with np.load(npz_path, allow_pickle=False) as data:
+        return {
+            "A_base_pos": int(data["A_base_label"].sum()),
+            "A_backbone_pos": int(data["A_backbone_label"].sum()),
+            "A_contact_pos": int(data["A_contact_label"].sum()),
+            "site_pos": int(data["site_label"].sum()),
+        }
+
+
+def passes_label_filters(counts: dict[str, int], args: argparse.Namespace) -> bool:
+    return (
+        counts["A_contact_pos"] >= args.min_contact_pairs
+        and counts["site_pos"] >= args.min_site_residues
+        and counts["A_base_pos"] >= args.min_base_pairs
+    )
+
+
 def prepare(args: argparse.Namespace) -> None:
     curated_root = Path(args.curated_root).resolve()
     fold_file = resolve_fold_file(args.fold_file, curated_root)
@@ -131,7 +151,10 @@ def prepare(args: argparse.Namespace) -> None:
     successes = []
     failures = []
     attempts = 0
-    table_rows = ["sample_id\tpdb_path\tpwm_path\tprotein_chains\tdna_chains\tpwm_id"]
+    table_rows = [
+        "sample_id\tpdb_path\tpwm_path\tprotein_chains\tdna_chains\tpwm_id\t"
+        "A_base_pos\tA_backbone_pos\tA_contact_pos\tsite_pos"
+    ]
 
     for entry in entries:
         if args.limit and len(successes) >= args.limit:
@@ -167,6 +190,19 @@ def prepare(args: argparse.Namespace) -> None:
                 print(f"FAIL {entry}")
                 print(result.stdout)
                 continue
+            counts = label_counts(out_npz)
+            if not passes_label_filters(counts, args):
+                reason = (
+                    "filtered_low_contact "
+                    f"A_base_pos={counts['A_base_pos']} "
+                    f"A_backbone_pos={counts['A_backbone_pos']} "
+                    f"A_contact_pos={counts['A_contact_pos']} "
+                    f"site_pos={counts['site_pos']}"
+                )
+                failures.append((entry, reason))
+                out_npz.unlink(missing_ok=True)
+                print(f"SKIP {sample_id}: {reason}")
+                continue
             successes.append(out_npz.resolve())
             table_rows.append(
                 "\t".join(
@@ -177,6 +213,10 @@ def prepare(args: argparse.Namespace) -> None:
                         protein_chain,
                         "",
                         pwm_id,
+                        str(counts["A_base_pos"]),
+                        str(counts["A_backbone_pos"]),
+                        str(counts["A_contact_pos"]),
+                        str(counts["site_pos"]),
                     ]
                 )
             )
@@ -208,6 +248,9 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--out-root", default="data/deeppbs_smoke")
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--max-attempts", type=int, default=0)
+    parser.add_argument("--min-base-pairs", type=int, default=0)
+    parser.add_argument("--min-contact-pairs", type=int, default=1)
+    parser.add_argument("--min-site-residues", type=int, default=1)
     parser.add_argument("--device", default="cuda")
     parser.add_argument(
         "--alignment-score",
