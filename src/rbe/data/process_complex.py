@@ -159,14 +159,24 @@ def _select_contact_constrained_alignment(
         raise ValueError(f"No selected DNA chain is long enough for PWM length {motif_len}.")
 
     valid = []
+    invalid_geometry_count = 0
     for candidate in candidates:
-        labels = _compute_contact_labels(
-            protein=protein,
-            dna=dna,
-            slot_to_dna_index=candidate.slot_to_dna_index,
-            base_contact_cutoff=args.base_contact_cutoff,
-            backbone_contact_cutoff=args.backbone_contact_cutoff,
-        )
+        try:
+            labels = _compute_contact_labels(
+                protein=protein,
+                dna=dna,
+                slot_to_dna_index=candidate.slot_to_dna_index,
+                base_contact_cutoff=args.base_contact_cutoff,
+                backbone_contact_cutoff=args.backbone_contact_cutoff,
+            )
+        except ValueError as exc:
+            message = str(exc)
+            if message.startswith("DNA residue ") and (
+                "base heavy atoms" in message or "backbone heavy atoms" in message
+            ):
+                invalid_geometry_count += 1
+                continue
+            raise
         counts = _contact_counts(*labels)
         if _passes_alignment_contact_constraints(counts, args):
             valid.append((candidate, counts))
@@ -179,6 +189,7 @@ def _select_contact_constrained_alignment(
             f"min_contact_pairs={args.alignment_min_contact_pairs} "
             f"min_site_residues={args.alignment_min_site_residues} "
             f"min_base_pairs={args.alignment_min_base_pairs} "
+            f"invalid_geometry_candidates={invalid_geometry_count} "
             f"best_sequence_only=chain:{best_sequence.chain} "
             f"start:{best_sequence.start} rc:{best_sequence.reverse_complement} "
             f"score:{best_sequence.score:.6f}"
