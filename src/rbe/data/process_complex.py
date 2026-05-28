@@ -9,6 +9,7 @@ from rbe.data.alignment import align_pwm_to_dna, enumerate_pwm_to_dna_alignments
 from rbe.data.esm import extract_esm2_t33_hidden
 from rbe.data.features import build_residue_graph, min_pairwise_distance
 from rbe.data.pdb import (
+    MissingDnaAtomsError,
     base_heavy_atom_coords,
     backbone_heavy_atom_coords,
     ca_or_centroid,
@@ -169,14 +170,9 @@ def _select_contact_constrained_alignment(
                 base_contact_cutoff=args.base_contact_cutoff,
                 backbone_contact_cutoff=args.backbone_contact_cutoff,
             )
-        except ValueError as exc:
-            message = str(exc)
-            if message.startswith("DNA residue ") and (
-                "base heavy atoms" in message or "backbone heavy atoms" in message
-            ):
-                invalid_geometry_count += 1
-                continue
-            raise
+        except MissingDnaAtomsError:
+            invalid_geometry_count += 1
+            continue
         counts = _contact_counts(*labels)
         if _passes_alignment_contact_constraints(counts, args):
             valid.append((candidate, counts))
