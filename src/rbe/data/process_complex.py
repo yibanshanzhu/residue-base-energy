@@ -9,7 +9,6 @@ from rbe.data.alignment import align_pwm_to_dna, enumerate_pwm_to_dna_alignments
 from rbe.data.esm import extract_esm2_t33_hidden
 from rbe.data.features import build_residue_graph, min_pairwise_distance
 from rbe.data.pdb import (
-    MissingDnaAtomsError,
     base_heavy_atom_coords,
     backbone_heavy_atom_coords,
     ca_or_centroid,
@@ -160,19 +159,14 @@ def _select_contact_constrained_alignment(
         raise ValueError(f"No selected DNA chain is long enough for PWM length {motif_len}.")
 
     valid = []
-    invalid_geometry_count = 0
     for candidate in candidates:
-        try:
-            labels = _compute_contact_labels(
-                protein=protein,
-                dna=dna,
-                slot_to_dna_index=candidate.slot_to_dna_index,
-                base_contact_cutoff=args.base_contact_cutoff,
-                backbone_contact_cutoff=args.backbone_contact_cutoff,
-            )
-        except MissingDnaAtomsError:
-            invalid_geometry_count += 1
-            continue
+        labels = _compute_contact_labels(
+            protein=protein,
+            dna=dna,
+            slot_to_dna_index=candidate.slot_to_dna_index,
+            base_contact_cutoff=args.base_contact_cutoff,
+            backbone_contact_cutoff=args.backbone_contact_cutoff,
+        )
         counts = _contact_counts(*labels)
         if _passes_alignment_contact_constraints(counts, args):
             valid.append((candidate, counts))
@@ -185,7 +179,6 @@ def _select_contact_constrained_alignment(
             f"min_contact_pairs={args.alignment_min_contact_pairs} "
             f"min_site_residues={args.alignment_min_site_residues} "
             f"min_base_pairs={args.alignment_min_base_pairs} "
-            f"invalid_geometry_candidates={invalid_geometry_count} "
             f"best_sequence_only=chain:{best_sequence.chain} "
             f"start:{best_sequence.start} rc:{best_sequence.reverse_complement} "
             f"score:{best_sequence.score:.6f}"

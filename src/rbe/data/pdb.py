@@ -35,10 +35,6 @@ class ResidueRecord:
         return f"{self.chain}:{self.resseq}{suffix}"
 
 
-class MissingDnaAtomsError(ValueError):
-    pass
-
-
 def _infer_element(atom_name: str) -> str:
     stripped = atom_name.strip()
     if not stripped:
@@ -134,9 +130,7 @@ def base_heavy_atom_coords(residue: ResidueRecord) -> np.ndarray:
         and atom.name.strip().upper() not in DNA_BACKBONE_ATOMS
     ]
     if not coords:
-        raise MissingDnaAtomsError(
-            f"DNA residue {residue.residue_id} has no base heavy atoms."
-        )
+        raise ValueError(f"DNA residue {residue.residue_id} has no base heavy atoms.")
     return np.stack(coords).astype(np.float32)
 
 
@@ -149,9 +143,7 @@ def backbone_heavy_atom_coords(residue: ResidueRecord) -> np.ndarray:
         and atom.name.strip().upper() in DNA_BACKBONE_ATOMS
     ]
     if not coords:
-        raise MissingDnaAtomsError(
-            f"DNA residue {residue.residue_id} has no backbone heavy atoms."
-        )
+        raise ValueError(f"DNA residue {residue.residue_id} has no backbone heavy atoms.")
     return np.stack(coords).astype(np.float32)
 
 
