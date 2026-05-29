@@ -19,6 +19,49 @@ DeepPBS 不是人工给每个 PWM column 找 DNA base。
 
 这一步 DeepPBS 已经整理过；我们把需要的 fold 文件和 PWM 数值直接 vendored 到本仓库。
 
+## DeepPBS fold 文件语义
+
+`DeepPBS/run/folds/` 里同时放了两类文件：
+
+| 文件 | 语义 | 是否属于 cross-validation |
+|---|---|---|
+| `train0.txt` 到 `train4.txt` | 5-fold cross-validation 的训练 split | 是 |
+| `valid0.txt` 到 `valid4.txt` | 5-fold cross-validation 的验证 split | 是 |
+| `id.txt` | independent benchmark | 否 |
+
+所以：
+
+```text
+train0 + valid0 ≈ cross-validation 全量样本
+id.txt = 额外 independent benchmark
+```
+
+本地核对结果：
+
+| 集合 | unique 数 |
+|---|---:|
+| `train0 + valid0` | 522 |
+| `id.txt` | 130 |
+| `train0+valid0` 和 `id.txt` 重叠 | 0 |
+| `train0-4 + valid0-4 + id` 去重 | 656 |
+
+因此，如果构建一个 all pool：
+
+```bash
+cat resources/deeppbs_curated/folds/train{0..4}.txt \
+    resources/deeppbs_curated/folds/valid{0..4}.txt \
+    resources/deeppbs_curated/folds/id.txt \
+  | sed '/^[[:space:]]*$/d' \
+  | sort -u \
+  > data/deeppbs_all_contactalign/all_entries.txt
+```
+
+得到 `656` 是合理的。它表示：
+
+```text
+cross-validation 样本 + independent benchmark 样本
+```
+
 ## DeepPBS 的对齐逻辑
 
 DeepPBS 代码位置：

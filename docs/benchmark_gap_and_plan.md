@@ -24,6 +24,8 @@ DeepPBS id.txt -> contact-valid prepare -> 5-fold RBE ensemble -> evaluate_manif
 
 原始 `id.txt` 有 130 条，当前 RBE contact-valid subset 成功评估 112 条。
 
+`id.txt` 虽然也位于 DeepPBS 的 `run/folds/` 目录下，但它不是 `train0-4/valid0-4` cross-validation 的一部分，而是 independent benchmark。`train0 + valid0` 基本覆盖 cross-validation 全量样本；`id.txt` 与这部分样本不重叠。
+
 | 项 | 数值 |
 |---|---:|
 | benchmark 原始条目 | 130 |
