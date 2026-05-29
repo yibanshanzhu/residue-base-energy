@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from rbe.data.pwm import read_pwm
-from scripts.prepare_deeppbs_smoke import (
+from scripts.prepare_deeppbs_curated import (
     DEFAULT_CURATED_ROOT,
     curated_pwm_path,
     parse_deeppbs_entry,

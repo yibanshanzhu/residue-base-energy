@@ -71,7 +71,7 @@ pip install -e .
 用内置 curated fold 文件直接准备 20 个样本：
 
 ```bash
-python scripts/prepare_deeppbs_smoke.py \
+python scripts/prepare_deeppbs_curated.py \
   --fold-file valid0.txt \
   --out-root data/deeppbs_smoke \
   --limit 20 \

@@ -253,11 +253,11 @@ def prepare(args: argparse.Namespace) -> None:
 
 def build_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Prepare an RBE smoke-test dataset from vendored DeepPBS mappings."
+        description="Prepare RBE samples from vendored DeepPBS curated mappings."
     )
     parser.add_argument("--curated-root", default=str(DEFAULT_CURATED_ROOT))
     parser.add_argument("--fold-file", default="valid0.txt")
-    parser.add_argument("--out-root", default="data/deeppbs_smoke")
+    parser.add_argument("--out-root", default="data/deeppbs_curated")
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--max-attempts", type=int, default=0)
     parser.add_argument("--min-base-pairs", type=int, default=0)

@@ -47,9 +47,16 @@ pip install -e .
 ## GPU smoke test
 
 ```bash
-python scripts/create_toy_npz.py --out-dir /tmp/rbe_toy
+mkdir -p /tmp/rbe_smoke/train
+python -m rbe.data.process_complex \
+  --pdb examples/smad3_1ozj/1ozj.pdb \
+  --pwm examples/smad3_1ozj/smad3_hocomoco_pwm.txt \
+  --protein-chains A \
+  --dna-chains C,D \
+  --output /tmp/rbe_smoke/train/smad3_1ozj_A.npz \
+  --device cuda
 python -m rbe.train \
-  --data-dir /tmp/rbe_toy \
+  --data-dir /tmp/rbe_smoke/train \
   --config configs/dna_v1.yaml \
   --out-dir /tmp/rbe_run \
   --epochs 1 \
@@ -152,7 +159,7 @@ python -m rbe.data.process_complex \
 仓库已经内置 DeepPBS curated mapping 和导出的 PWM，不需要 clone 或调用 DeepPBS 仓库：
 
 ```bash
-python scripts/prepare_deeppbs_smoke.py \
+python scripts/prepare_deeppbs_curated.py \
   --fold-file valid0.txt \
   --out-root data/deeppbs_smoke \
   --limit 20 \
