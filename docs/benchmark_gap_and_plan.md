@@ -34,10 +34,19 @@ PWM 结果：
 
 | 指标 | mean | std | n |
 |---|---:|---:|---:|
-| `pwm_mae` | 0.145018 | 0.108795 | 112 |
+| `pwm_mae` | 0.580072 | 0.435180 | 112 |
 | `pwm_kl` | 0.525056 | 0.686145 | 112 |
 | `pwm_ic_pcc` | 0.713164 | 0.388330 | 112 |
 | `pwm_rc_aware_kl` | 0.377593 | 0.579355 | 112 |
+
+注意：`pwm_mae` 已更新为 DeepPBS-style position L1 口径：
+
+```text
+per-position MAE = |A误差| + |C误差| + |G误差| + |T误差|
+pwm_mae = mean(per-position MAE)
+```
+
+旧结果 `0.145018` 是把 `M x 4` 全部摊平后的概率平均误差，不再作为主表 MAE。
 
 Residue-base/contact 解释性结果：
 
@@ -61,10 +70,10 @@ Protein-site 结果：
 
 | 结论 | 说明 |
 |---|---|
-| PWM 已经有很强信号 | `pwm_mae=0.145`，明显优于之前 `valid0` 单 split 的 `0.258` |
+| PWM 已经接近 DeepPBS 量级 | DeepPBS-style `pwm_mae=0.580`，接近 DeepPBS official / reproduced benchmark 的 `0.48-0.54` 量级 |
 | site 结果也有竞争力 | `site_ap=0.777`，`site_mcc=0.650` |
 | A map 有解释性信号 | `A_contact_ap=0.425`，但还不是最终强项 |
-| 仍不能直接宣称超过 DeepPBS | 这是 contact-valid subset，不是完整 130；还缺 DeepPBS same-subset rerun |
+| 仍不能直接宣称超过 DeepPBS | RBE 是 112 条 contact-valid subset；DeepPBS official 是 full 130，且还缺 DeepPBS same-subset rerun |
 
 ## 当前最大欠缺
 
@@ -294,15 +303,16 @@ python -m rbe.eval.evaluate_manifest \
 
 | 方法 | Benchmark | 输入 | PWM MAE |
 |---|---|---|---:|
-| DeepPBS | official `id.txt`, full benchmark | protein-DNA complex | official number |
-| RBE | `id.txt` contact-valid subset | protein monomer + motif length | our number |
+| DeepPBS official | official `id.txt`, full 130 | protein-DNA complex | median 0.4796 |
+| DeepPBS reproduced | official `id.txt`, full 130 | protein-DNA complex | median 0.4985, mean 0.5412 |
+| RBE ensemble | `id.txt` contact-valid 112 | protein monomer + motif length | mean 0.5801 |
 
 更公平的补充表：
 
 | 方法 | Benchmark subset | 输入 | MAE | KL | IC-PCC |
 |---|---|---|---:|---:|---:|
 | DeepPBS rerun | same contact-valid subset | protein-DNA complex | 待跑 |
-| RBE ensemble | same contact-valid subset | protein monomer + motif length | 待跑 | 待跑 | 待跑 |
+| RBE ensemble | same contact-valid subset | protein monomer + motif length | 0.5801 | 0.5251 | 0.7132 |
 
 第一张表能说明量级。
 
