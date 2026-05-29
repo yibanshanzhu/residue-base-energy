@@ -46,8 +46,6 @@ per-position MAE = |A误差| + |C误差| + |G误差| + |T误差|
 pwm_mae = mean(per-position MAE)
 ```
 
-旧结果 `0.145018` 是把 `M x 4` 全部摊平后的概率平均误差，不再作为主表 MAE。
-
 Residue-base/contact 解释性结果：
 
 | 指标 | mean | std | n |
