@@ -40,23 +40,25 @@ id.txt = 额外 independent benchmark
 
 | 集合 | unique 数 |
 |---|---:|
-| `train0 + valid0` | 522 |
+| `train0 + valid0` | 523 |
 | `id.txt` | 130 |
 | `train0+valid0` 和 `id.txt` 重叠 | 0 |
-| `train0-4 + valid0-4 + id` 去重 | 656 |
+| `train0-4 + valid0-4 + id` 去重 | 653 |
 
 因此，如果构建一个 all pool：
 
 ```bash
-cat resources/deeppbs_curated/folds/train{0..4}.txt \
-    resources/deeppbs_curated/folds/valid{0..4}.txt \
-    resources/deeppbs_curated/folds/id.txt \
-  | sed '/^[[:space:]]*$/d' \
+awk 'NF {print}' \
+  resources/deeppbs_curated/folds/train{0..4}.txt \
+  resources/deeppbs_curated/folds/valid{0..4}.txt \
+  resources/deeppbs_curated/folds/id.txt \
   | sort -u \
   > data/deeppbs_all_contactalign/all_entries.txt
 ```
 
-得到 `656` 是合理的。它表示：
+不要用 `cat file1 file2 ...` 拼接这些 fold 文件，因为有些文件末尾没有换行，`cat` 会把相邻文件的最后一条和第一条粘成假 entry。
+
+得到 `653` 是合理的。它表示：
 
 ```text
 cross-validation 样本 + independent benchmark 样本
