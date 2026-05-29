@@ -6,7 +6,10 @@ from rbe.data.pwm import normalize_pwm
 
 
 def pwm_mae(target: np.ndarray, pred: np.ndarray) -> float:
-    return float(np.mean(np.abs(normalize_pwm(target) - normalize_pwm(pred))))
+    target = normalize_pwm(target)
+    pred = normalize_pwm(pred)
+    per_position_l1 = np.sum(np.abs(target - pred), axis=1)
+    return float(np.mean(per_position_l1))
 
 
 def pwm_kl(target: np.ndarray, pred: np.ndarray, eps: float = 1e-8) -> float:
