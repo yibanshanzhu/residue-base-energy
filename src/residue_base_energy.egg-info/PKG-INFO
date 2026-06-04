@@ -1,4 +1,15 @@
-# Residue-Base Energy Model
+Metadata-Version: 2.4
+Name: residue-base-energy
+Version: 0.1.0
+Summary: Residue-base energy model for DNA-binding specificity prediction.
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.23
+Requires-Dist: torch>=2.0
+Requires-Dist: PyYAML>=6.0
+Requires-Dist: fair-esm>=2.0
+
+# Residue-Base Energy Model 
 
 
 ## 目标
@@ -22,7 +33,6 @@ PWM[j,b] = softmax_b Σ_i A_base(i,j) * E(i,j,b)
 
 | 文档 | 内容 |
 |---|---|
-| [`docs/README.md`](docs/README.md) | docs 入口、推荐阅读顺序和任务索引 |
 | [`docs/idea_from_prior_work.md`](docs/idea_from_prior_work.md) | 说明本项目如何从 rCLAMPS、DeepPBS、EquiPPIS/EquiPNAS、MegSite 等方法抽象出来 |
 | [`docs/deeppbs_data_alignment.md`](docs/deeppbs_data_alignment.md) | 用仓库内置 DeepPBS curated mapping 自动下载 PDB、对齐并生成训练数据 |
 
@@ -48,16 +58,9 @@ pip install -e .
 ## GPU smoke test
 
 ```bash
-mkdir -p /tmp/rbe_smoke/train
-python -m rbe.data.process_complex \
-  --pdb examples/smad3_1ozj/1ozj.pdb \
-  --pwm examples/smad3_1ozj/smad3_hocomoco_pwm.txt \
-  --protein-chains A \
-  --dna-chains C,D \
-  --output /tmp/rbe_smoke/train/smad3_1ozj_A.npz \
-  --device cuda
+python scripts/create_toy_npz.py --out-dir /tmp/rbe_toy
 python -m rbe.train \
-  --data-dir /tmp/rbe_smoke/train \
+  --data-dir /tmp/rbe_toy \
   --config configs/dna_v1.yaml \
   --out-dir /tmp/rbe_run \
   --epochs 1 \
@@ -66,7 +69,7 @@ python -m rbe.train \
 
 ## 数据处理
 
-默认会做 contact-constrained PWM-DNA 对齐：枚举每条 DNA chain 的正向和反向互补 `start/strand`，先丢掉 motif window 没有 protein-DNA contact 的候选，再从剩余候选里选 sequence score 最高的窗口，生成 `slot_to_dna_index`。
+默认会自动把 PWM 对齐到选中 DNA chain 的 sequence：每条 DNA chain 的正向和反向互补都会尝试，选择 **IC-weighted log-likelihood** 最高的 `start/strand`，然后生成 `slot_to_dna_index`。
 
 ```bash
 python -m rbe.data.process_complex \
@@ -99,17 +102,6 @@ python -m rbe.data.process_complex \
   --protein-chains A \
   --alignment-score deeppbs_ic_pcc \
   --output data/train/sample.deeppbs_align.npz
-```
-
-如需复现旧的纯 sequence alignment：
-
-```bash
-python -m rbe.data.process_complex \
-  --pdb complex.pdb \
-  --pwm pwm.txt \
-  --protein-chains A \
-  --alignment-contact-policy sequence_only \
-  --output data/train/sample.sequence_only.npz
 ```
 
 也可以手动覆盖 motif slot 到 DNA residue index：
@@ -160,12 +152,10 @@ python -m rbe.data.process_complex \
 仓库已经内置 DeepPBS curated mapping 和导出的 PWM，不需要 clone 或调用 DeepPBS 仓库：
 
 ```bash
-python scripts/prepare_deeppbs_curated.py \
+python scripts/prepare_deeppbs_smoke.py \
   --fold-file valid0.txt \
   --out-root data/deeppbs_smoke \
   --limit 20 \
-  --min-contact-pairs 1 \
-  --min-site-residues 1 \
   --device cuda
 ```
 
@@ -176,8 +166,6 @@ data/deeppbs_smoke/train/*.npz
 data/deeppbs_smoke/train_manifest.txt
 data/deeppbs_smoke/failed.tsv
 ```
-
-默认会过滤 `A_contact_pos=0` 或 `site_pos=0` 的样本，因为这类样本没有可学习的 contact/site 标签。
 
 训练 loss：
 

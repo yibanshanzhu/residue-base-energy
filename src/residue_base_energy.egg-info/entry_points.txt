@@ -1,0 +1,6 @@
+[console_scripts]
+rbe-evaluate-manifest = rbe.eval.evaluate_manifest:main
+rbe-evaluate-pwm = rbe.eval.evaluate_pwm:main
+rbe-predict = rbe.predict:main
+rbe-process-complex = rbe.data.process_complex:main
+rbe-train = rbe.train:main

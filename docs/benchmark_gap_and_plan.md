@@ -1,5 +1,43 @@
 # Benchmark 欠缺与解决计划
 
+## 现在先别绕晕
+
+截至 2026-06-02，本地已经核对到：
+
+| 阶段 | 状态 | 本地产物 |
+|---|---|---|
+| DeepPBS `id.txt` prepare | 已完成 | `data/deeppbs_id_contactalign/train_manifest.txt`，112 条 |
+| prepare 失败记录 | 已完成 | `data/deeppbs_id_contactalign/failed.tsv`，18 条 |
+| RBE 5-fold training | 已完成 | `runs/deeppbs_fold{0..4}_contactalign/best.pt` |
+| RBE 5-fold ensemble prediction | 已完成 | `runs/deeppbs_id_ensemble/preds/*.pred.npz`，112 个 |
+| RBE benchmark evaluation | 已完成 | `runs/deeppbs_id_ensemble/preds/eval_summary.tsv` |
+
+所以现在不要再卡在 Step 1-4。它们已经是 **复现实验记录**，不是当前待办。
+
+真正剩下的硬缺口只有一个：
+
+```text
+DeepPBS 在同一批 112 个 contact-valid samples 上 rerun，
+然后用同一套 PWM metrics 和 RBE 结果比较。
+```
+
+如果只是写阶段报告或组会汇报，可以先停在这个结论：
+
+```text
+RBE 在 DeepPBS independent benchmark 的 contact-valid subset 上表现出有希望的 PWM 和 protein-site 信号；
+但由于还没有 DeepPBS same-subset rerun，不能声称超过 DeepPBS。
+```
+
+如果要冲严格比较，下一步不是再跑 RBE，而是：
+
+```bash
+mkdir -p reports
+sed 's#.*/##' data/deeppbs_id_contactalign/train_manifest.txt \
+  > reports/deeppbs_id_contactvalid_entries.txt
+```
+
+然后用这个 112 条列表去约束 DeepPBS rerun，并把 DeepPBS 输出转换到 `rbe.eval.evaluate_pwm` 或 `rbe.eval.evaluate_manifest` 能读的同一指标口径。
+
 ## 当前结论先收紧
 
 现在的结果说明模型有信号，但还不能宣称超过 DeepPBS、EquiPNAS 或 EquiPPIS。
@@ -177,11 +215,13 @@ RBE vs EquiPNAS: 只能主比 protein binding site
 RBE vs EquiPPIS: 不做主表数值比较
 ```
 
-## 解决计划
+## 已执行流程与剩余计划
 
 ### Step 1. 准备 DeepPBS independent benchmark
 
 目标：把 `id.txt` 处理成 RBE 可用的 contact-valid benchmark。
+
+状态：已完成。当前本地结果是 112 条成功、18 条失败。
 
 命令：
 
@@ -218,6 +258,16 @@ cut -f2 data/deeppbs_id_contactalign/failed.tsv | sort | uniq -c | sort -nr
 
 目标：复刻 DeepPBS 5-fold ensemble 的评估设定。
 
+状态：已完成。当前本地已有：
+
+```text
+runs/deeppbs_fold0_contactalign/best.pt
+runs/deeppbs_fold1_contactalign/best.pt
+runs/deeppbs_fold2_contactalign/best.pt
+runs/deeppbs_fold3_contactalign/best.pt
+runs/deeppbs_fold4_contactalign/best.pt
+```
+
 每个 fold 用对应 train 文件训练：
 
 ```bash
@@ -249,6 +299,8 @@ done
 
 目标：每个 `id.txt` benchmark sample 用五个模型预测，然后平均。
 
+状态：已完成。当前 `runs/deeppbs_id_ensemble/preds/` 下已有 112 个 `.pred.npz`。
+
 命令：
 
 ```bash
@@ -276,6 +328,12 @@ site_prob = mean(site_prob_0, site_prob_1, site_prob_2, site_prob_3, site_prob_4
 
 ### Step 4. 评估 RBE benchmark 结果
 
+状态：已完成。结果在：
+
+```text
+runs/deeppbs_id_ensemble/preds/eval_summary.tsv
+```
+
 命令：
 
 ```bash
@@ -297,6 +355,92 @@ python -m rbe.eval.evaluate_manifest \
 
 ### Step 5. 形成 DeepPBS 对比表
 
+状态：保守表已经能写；严格表还差 DeepPBS same-subset rerun。
+
+#### 5.1 用本地 DeepPBS rerun 结果做同子集评估
+
+当前可用的 DeepPBS rerun 目录：
+
+```text
+/home/dangqi/deeppbs_contact_aware_exp
+```
+
+这个目录下已有 `benchmark_id/baseline_filtered/npzs/*.npz_predict.npz` 和 `benchmark_id/contact_aware/npzs/*.npz_predict.npz`。这些文件里的 `P` 是 DeepPBS 对 DNA positions 的预测，不一定和 RBE 的 `pwm_target` 长度相同，所以不能直接逐列比较。
+
+先把 DeepPBS DNA-position predictions 对齐到 RBE 的 motif slots：
+
+```bash
+python scripts/align_deeppbs_predictions_for_rbe_eval.py \
+  --manifest data/deeppbs_id_contactalign/train_manifest.txt \
+  --deeppbs-pred-dir /home/dangqi/deeppbs_contact_aware_exp/benchmark_id/baseline_filtered/npzs \
+  --out-dir runs/deeppbs_same_subset/baseline_filtered
+
+python scripts/align_deeppbs_predictions_for_rbe_eval.py \
+  --manifest data/deeppbs_id_contactalign/train_manifest.txt \
+  --deeppbs-pred-dir /home/dangqi/deeppbs_contact_aware_exp/benchmark_id/contact_aware/npzs \
+  --out-dir runs/deeppbs_same_subset/contact_aware
+```
+
+输出：
+
+| 文件 | 含义 |
+|---|---|
+| `preds_aligned/*.pred.npz` | 已裁剪/翻转到 RBE motif slots 的 DeepPBS PWM |
+| `aligned_manifest.txt` | 能确认 alignment 一致的样本 |
+| `alignment_modes.tsv` | 每个样本用 slot index 还是 sequence window 对齐 |
+| `alignment_failures.tsv` | 不能确认 alignment 一致的样本 |
+
+2026-06-02 当前结果：
+
+| 目录 | aligned | failures | 解释 |
+|---|---:|---:|---|
+| `baseline_filtered` | 97 | 15 | 可做 common-alignable subset 比较 |
+| `contact_aware` | 97 | 15 | 可作为额外变体，不要命名成 official DeepPBS |
+
+这说明当前本地 DeepPBS rerun 还不是完整 112/112 strict comparison。15 条 failure 的主要原因是 DeepPBS preprocessing 里的 DNA sequence/PWM trimming 和 RBE contact-constrained alignment 不完全一致。要完成真正 112/112，需要让 DeepPBS rerun 使用和 RBE 完全一致的：
+
+```text
+contact-valid sample list
+vendored PWM trimming
+DNA slot/window
+strand/orientation
+```
+
+在 97 条 common-alignable subset 上评估：
+
+```bash
+python -m rbe.eval.evaluate_manifest \
+  --manifest runs/deeppbs_same_subset/baseline_filtered/aligned_manifest.txt \
+  --pred-dir runs/deeppbs_same_subset/baseline_filtered/preds_aligned \
+  --summary-tsv runs/deeppbs_same_subset/baseline_filtered/eval_summary.tsv \
+  --per-sample-tsv runs/deeppbs_same_subset/baseline_filtered/eval_per_sample.tsv \
+  --device cpu
+
+python -m rbe.eval.evaluate_manifest \
+  --manifest runs/deeppbs_same_subset/contact_aware/aligned_manifest.txt \
+  --pred-dir runs/deeppbs_same_subset/contact_aware/preds_aligned \
+  --summary-tsv runs/deeppbs_same_subset/contact_aware/eval_summary.tsv \
+  --per-sample-tsv runs/deeppbs_same_subset/contact_aware/eval_per_sample.tsv \
+  --device cpu
+
+python -m rbe.eval.evaluate_manifest \
+  --manifest runs/deeppbs_same_subset/baseline_filtered/aligned_manifest.txt \
+  --pred-dir runs/deeppbs_id_ensemble/preds \
+  --summary-tsv runs/deeppbs_same_subset/rbe_ensemble_97/eval_summary.tsv \
+  --per-sample-tsv runs/deeppbs_same_subset/rbe_ensemble_97/eval_per_sample.tsv \
+  --device cpu
+```
+
+当前 97 条 common-alignable subset 结果：
+
+| 方法 | PWM MAE | PWM KL | IC-PCC | RC-aware KL | n |
+|---|---:|---:|---:|---:|---:|
+| RBE ensemble | 0.544151 | 0.464686 | 0.744590 | 0.391272 | 97 |
+| DeepPBS `baseline_filtered` | 0.633143 | 0.537630 | 0.732972 | 0.529608 | 97 |
+| DeepPBS `contact_aware` | 0.639378 | 0.512745 | 0.740452 | 0.500680 | 97 |
+
+这张表可以写成“common-alignable subset diagnostic”，还不能替代 112 条 strict comparison。
+
 先写两个层级的结论。
 
 保守主表：
@@ -314,11 +458,13 @@ python -m rbe.eval.evaluate_manifest \
 | DeepPBS rerun | same contact-valid subset | protein-DNA complex | 待跑 |
 | RBE ensemble | same contact-valid subset | protein monomer + motif length | 0.5801 | 0.5251 | 0.7132 |
 
-第一张表能说明量级。
+第一张表能说明量级，但不是严格同条件比较。
 
-第二张表才接近公平比较。
+第二张表才接近公平比较；这里的 `DeepPBS rerun` 是当前真正待办。
 
 ### Step 6. EquiPNAS 只做 site 对比
+
+状态：后续可选。它不是当前 DeepPBS benchmark 卡点。
 
 不要拿 EquiPNAS 比 PWM。
 
@@ -350,17 +496,17 @@ RBE is SOTA.
 现在最多写：
 
 ```text
-On a DeepPBS-derived contact-valid validation split, RBE shows promising PWM and protein-site signals.
-Formal comparison will use the DeepPBS independent benchmark with 5-fold ensemble evaluation.
+On the DeepPBS independent benchmark contact-valid subset, RBE shows promising PWM and protein-site signals.
+A strict outperform claim requires rerunning DeepPBS on the same contact-valid subset with the same PWM metrics.
 ```
 
 ## 最短验收标准
 
-| 阶段 | 通过标准 |
-|---|---|
-| benchmark prepare | `id.txt` 成功样本数、失败原因可解释 |
-| 5-fold training | 5 个 `best.pt` 都存在 |
-| ensemble prediction | 每个 benchmark sample 有 `.pred.npz` |
-| RBE benchmark eval | 输出 `eval_summary.tsv` |
-| DeepPBS comparison | 至少有 official number vs RBE subset number |
-| 严格比较 | 同一 contact-valid subset 上 rerun DeepPBS |
+| 阶段 | 通过标准 | 当前状态 |
+|---|---|---|
+| benchmark prepare | `id.txt` 成功样本数、失败原因可解释 | done |
+| 5-fold training | 5 个 `best.pt` 都存在 | done |
+| ensemble prediction | 每个 benchmark sample 有 `.pred.npz` | done |
+| RBE benchmark eval | 输出 `eval_summary.tsv` | done |
+| DeepPBS comparison | 至少有 official number vs RBE subset number | done，可写保守表 |
+| 严格比较 | 同一 contact-valid subset 上 rerun DeepPBS | todo，真正剩余卡点 |
