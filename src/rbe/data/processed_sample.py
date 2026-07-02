@@ -112,8 +112,10 @@ def build_processed_complex_sample(
         "edge_attr": edge_attr,
         "esm2_repr": esm2_repr,
         "pwm_target": pwm_target,
+        "pwm_mask": labels.pwm_mask,
         "A_label": labels.A_base_label,
         "A_base_label": labels.A_base_label,
+        "A_base_mask": labels.A_base_mask,
         "A_backbone_label": labels.A_backbone_label,
         "A_contact_label": labels.A_contact_label,
         "site_label": labels.site_label,
@@ -161,7 +163,10 @@ def format_processed_complex_summary(
 def _validate_slot_indices(slot_to_dna_index: np.ndarray, dna_len: int) -> None:
     if slot_to_dna_index.size == 0:
         raise ValueError("slot_to_dna_index is empty.")
-    if slot_to_dna_index.min() < 0 or slot_to_dna_index.max() >= dna_len:
+    visible = slot_to_dna_index[slot_to_dna_index >= 0]
+    if visible.size == 0:
+        raise ValueError("slot_to_dna_index has no visible DNA residues.")
+    if visible.max() >= dna_len:
         raise ValueError(
             f"slot_to_dna_index out of range for selected DNA residues: 0..{dna_len - 1}."
         )

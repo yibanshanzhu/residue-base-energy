@@ -103,6 +103,10 @@ def align_pwm_to_dna(
         pwm, dna_residues, score_mode=score_mode
     )
     if not candidates:
+        candidates = enumerate_partial_pwm_to_dna_alignments(
+            pwm, dna_residues, score_mode=score_mode
+        )
+    if not candidates:
         motif_len = normalize_pwm(pwm).shape[0]
         lengths = {chain: len(seq) for chain, seq, _ in dna_chains_with_indices(dna_residues)}
         raise ValueError(
@@ -145,5 +149,52 @@ def enumerate_pwm_to_dna_alignments(
                     aligned_sequence=window,
                 )
                 alignments.append(candidate)
+
+    return alignments
+
+
+def enumerate_partial_pwm_to_dna_alignments(
+    pwm: np.ndarray,
+    dna_residues: list[ResidueRecord],
+    score_mode: str = "ic_log_likelihood",
+) -> list[PWMAlignment]:
+    pwm = normalize_pwm(pwm)
+    motif_len = pwm.shape[0]
+    alignments = []
+
+    for chain, sequence, indices in dna_chains_with_indices(dna_residues):
+        overlap_len = len(sequence)
+        if overlap_len == 0 or overlap_len >= motif_len:
+            continue
+        candidates = [
+            (False, sequence, indices),
+            (True, reverse_complement_sequence(sequence), indices[::-1]),
+        ]
+        for is_rc, oriented_sequence, oriented_indices in candidates:
+            for pwm_start in range(0, motif_len - overlap_len + 1):
+                pwm_window = pwm[pwm_start : pwm_start + overlap_len]
+                score = _score_pwm_against_sequence(
+                    pwm_window, oriented_sequence, score_mode=score_mode
+                )
+                slot_to_dna_index = np.full(motif_len, -1, dtype=np.int64)
+                slot_to_dna_index[pwm_start : pwm_start + overlap_len] = (
+                    oriented_indices.copy()
+                )
+                aligned_sequence = (
+                    "-" * pwm_start
+                    + oriented_sequence
+                    + "-" * (motif_len - pwm_start - overlap_len)
+                )
+                alignments.append(
+                    PWMAlignment(
+                        chain=chain,
+                        start=pwm_start,
+                        reverse_complement=is_rc,
+                        score_mode=score_mode,
+                        score=score,
+                        slot_to_dna_index=slot_to_dna_index,
+                        aligned_sequence=aligned_sequence,
+                    )
+                )
 
     return alignments

@@ -5,6 +5,7 @@ from rbe.data.atom_geometry import (
     base_heavy_atom_coords,
     ca_or_centroid,
     heavy_atom_coords,
+    try_base_heavy_atom_coords,
 )
 from rbe.data.residue_select import (
     is_dna_residue,
@@ -25,6 +26,7 @@ __all__ = [
     "base_heavy_atom_coords",
     "ca_or_centroid",
     "heavy_atom_coords",
+    "try_base_heavy_atom_coords",
     "is_dna_residue",
     "is_protein_residue",
     "parse_chain_list",

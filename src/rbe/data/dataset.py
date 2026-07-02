@@ -44,6 +44,14 @@ class RBEDataset(Dataset):
             residue_aa = data["residue_aa"].astype(str)
             aa_idx = np.array([AA_TO_IDX[aa] for aa in residue_aa], dtype=np.int64)
             A_base_label = data["A_base_label"] if "A_base_label" in data else data["A_label"]
+            if "pwm_mask" in data:
+                pwm_mask = data["pwm_mask"]
+            else:
+                pwm_mask = np.ones(data["pwm_target"].shape[0], dtype=np.float32)
+            if "A_base_mask" in data:
+                A_base_mask = data["A_base_mask"]
+            else:
+                A_base_mask = np.ones_like(A_base_label, dtype=np.float32)
             if "A_backbone_label" in data:
                 A_backbone_label = data["A_backbone_label"]
             else:
@@ -62,8 +70,10 @@ class RBEDataset(Dataset):
                 "edge_attr": torch.from_numpy(data["edge_attr"].astype(np.float32)),
                 "esm2_repr": torch.from_numpy(data["esm2_repr"].astype(np.float32)),
                 "pwm_target": torch.from_numpy(normalize_pwm(data["pwm_target"])),
+                "pwm_mask": torch.from_numpy(pwm_mask.astype(np.float32)),
                 "A_label": torch.from_numpy(A_base_label.astype(np.float32)),
                 "A_base_label": torch.from_numpy(A_base_label.astype(np.float32)),
+                "A_base_mask": torch.from_numpy(A_base_mask.astype(np.float32)),
                 "A_backbone_label": torch.from_numpy(
                     A_backbone_label.astype(np.float32)
                 ),

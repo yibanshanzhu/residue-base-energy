@@ -46,4 +46,4 @@ PDB/mmCIF structure + motif database PWM + chain selection + split
 | 与 DeepPBS | DeepPBS 是 complex-input reference；RBE 推理时不使用 DNA 坐标 |
 | 可比主指标 | PWM metrics |
 | site 指标 | 可作为附加结果，不和 DeepPBS 直接等价 |
-| 当前主要缺口 | partial PWM/masked supervision 还没完成 |
+| partial PWM | 已用 `pwm_mask` 和 `slot_to_dna_index=-1` 表达不可见 columns |

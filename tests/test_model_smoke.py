@@ -26,8 +26,10 @@ def test_forward_and_loss_shapes():
         "edge_index": edge_index,
         "edge_attr": torch.randn(edge_index.shape[1], 17),
         "pwm_target": torch.softmax(torch.randn(motif_len, 4), dim=-1),
+        "pwm_mask": torch.ones(motif_len),
         "A_label": torch.zeros(n_res, motif_len),
         "A_base_label": torch.zeros(n_res, motif_len),
+        "A_base_mask": torch.ones(n_res, motif_len),
         "A_backbone_label": torch.zeros(n_res, motif_len),
         "A_contact_label": torch.zeros(n_res, motif_len),
         "site_label": torch.zeros(n_res),
@@ -64,3 +66,81 @@ def test_forward_and_loss_shapes():
     assert torch.isfinite(losses["loss_A_base"])
     assert torch.isfinite(losses["loss_A_backbone"])
     assert torch.isfinite(losses["loss_noncontact"])
+
+
+def test_A_base_mask_excludes_unknown_positions_from_base_losses():
+    outputs = {
+        "pwm_logits": torch.zeros(2, 4),
+        "A_base": torch.full((2, 2), 0.5),
+        "A_base_logits": torch.zeros(2, 2),
+        "A_backbone_logits": torch.zeros(2, 2),
+        "site_score": torch.zeros(2),
+        "A_contact": torch.zeros(2, 2),
+        "E": torch.ones(2, 2, 4),
+    }
+    sample = {
+        "pwm_target": torch.full((2, 4), 0.25),
+        "pwm_mask": torch.ones(2),
+        "A_base_label": torch.tensor([[0.0, 0.0], [0.0, 0.0]]),
+        "A_base_mask": torch.tensor([[1.0, 0.0], [1.0, 1.0]]),
+        "A_backbone_label": torch.zeros(2, 2),
+        "A_contact_label": torch.zeros(2, 2),
+        "site_label": torch.zeros(2),
+    }
+    weights = {
+        "lambda_pwm_teacher": 1.0,
+        "lambda_A_base": 1.0,
+        "lambda_A_backbone": 1.0,
+        "lambda_site": 0.5,
+        "lambda_sparse": 0.01,
+        "lambda_noncontact": 0.05,
+    }
+
+    base_losses = compute_rbe_losses(outputs, sample, weights)
+    sample_changed = {**sample, "A_base_label": sample["A_base_label"].clone()}
+    sample_changed["A_base_label"][0, 1] = 1.0
+    changed_losses = compute_rbe_losses(outputs, sample_changed, weights)
+
+    assert torch.allclose(base_losses["loss_A_base"], changed_losses["loss_A_base"])
+    assert torch.allclose(
+        base_losses["loss_noncontact"], changed_losses["loss_noncontact"]
+    )
+
+
+def test_pwm_mask_excludes_unobserved_columns_from_structure_losses():
+    outputs = {
+        "pwm_logits": torch.zeros(2, 4),
+        "A_base": torch.full((2, 2), 0.5),
+        "A_base_logits": torch.zeros(2, 2),
+        "A_backbone_logits": torch.zeros(2, 2),
+        "site_score": torch.zeros(2),
+        "A_contact": torch.tensor([[0.2, 0.9], [0.2, 0.9]]),
+        "E": torch.ones(2, 2, 4),
+    }
+    sample = {
+        "pwm_target": torch.full((2, 4), 0.25),
+        "pwm_mask": torch.tensor([1.0, 0.0]),
+        "A_base_label": torch.zeros(2, 2),
+        "A_base_mask": torch.tensor([[1.0, 0.0], [1.0, 0.0]]),
+        "A_backbone_label": torch.zeros(2, 2),
+        "A_contact_label": torch.zeros(2, 2),
+        "site_label": torch.zeros(2),
+    }
+    weights = {
+        "lambda_pwm_teacher": 1.0,
+        "lambda_A_base": 1.0,
+        "lambda_A_backbone": 1.0,
+        "lambda_site": 0.5,
+        "lambda_sparse": 0.01,
+        "lambda_noncontact": 0.05,
+    }
+
+    base_losses = compute_rbe_losses(outputs, sample, weights)
+    changed = {**sample, "A_backbone_label": sample["A_backbone_label"].clone()}
+    changed["A_backbone_label"][:, 1] = 1.0
+    changed_losses = compute_rbe_losses(outputs, changed, weights)
+
+    assert torch.allclose(
+        base_losses["loss_A_backbone"], changed_losses["loss_A_backbone"]
+    )
+    assert torch.allclose(base_losses["loss_sparse"], torch.tensor(0.2))

@@ -33,7 +33,18 @@ def _parse_baseline(values: list[str] | None) -> list[tuple[str, str]]:
     return out
 
 
-def _print_map_metrics(title: str, y_true: np.ndarray, y_score: np.ndarray) -> dict:
+def _print_map_metrics(
+    title: str,
+    y_true: np.ndarray,
+    y_score: np.ndarray,
+    y_mask: np.ndarray | None = None,
+) -> dict:
+    if y_mask is not None:
+        mask = np.asarray(y_mask).astype(bool)
+        if mask.ndim == 1 and np.asarray(y_true).ndim == 2:
+            mask = np.broadcast_to(mask[None, :], np.asarray(y_true).shape)
+        y_true = np.asarray(y_true)[mask]
+        y_score = np.asarray(y_score)[mask]
     top_l = int(y_true.sum())
     if top_l <= 0:
         metrics = {
@@ -79,19 +90,28 @@ def evaluate(args: argparse.Namespace) -> None:
     extra = {"pwm": rows}
     if "A_base_label" in target and "A_base" in pred:
         extra["A_base_map"] = _print_map_metrics(
-            "A_base_map", target["A_base_label"], pred["A_base"]
+            "A_base_map",
+            target["A_base_label"],
+            pred["A_base"],
+            target["A_base_mask"] if "A_base_mask" in target else None,
         )
     elif "A_label" in target and "A" in pred:
         extra["A_base_map"] = _print_map_metrics("A_base_map", target["A_label"], pred["A"])
 
     if "A_backbone_label" in target and "A_backbone" in pred:
         extra["A_backbone_map"] = _print_map_metrics(
-            "A_backbone_map", target["A_backbone_label"], pred["A_backbone"]
+            "A_backbone_map",
+            target["A_backbone_label"],
+            pred["A_backbone"],
+            target["pwm_mask"] if "pwm_mask" in target else None,
         )
 
     if "A_contact_label" in target and "A_contact" in pred:
         extra["A_contact_map"] = _print_map_metrics(
-            "A_contact_map", target["A_contact_label"], pred["A_contact"]
+            "A_contact_map",
+            target["A_contact_label"],
+            pred["A_contact"],
+            target["pwm_mask"] if "pwm_mask" in target else None,
         )
 
     if "site_label" in target and "site_prob" in pred:

@@ -31,8 +31,12 @@ def evaluate_pair(target_path: str | Path, pred_path: str | Path) -> dict:
     for key, value in pwm_metrics(get_pwm(target), get_pwm(pred)).items():
         row[f"pwm_{key}"] = value
 
-    for prefix, label_key, pred_key in _map_specs(target, pred):
-        metrics = map_metrics(target[label_key], pred[pred_key])
+    for prefix, label_key, pred_key, mask_key in _map_specs(target, pred):
+        metrics = map_metrics(
+            target[label_key],
+            pred[pred_key],
+            target[mask_key] if mask_key and mask_key in target else None,
+        )
         for key, value in metrics.items():
             row[f"{prefix}_{key}"] = value
 
@@ -44,7 +48,15 @@ def evaluate_pair(target_path: str | Path, pred_path: str | Path) -> dict:
     return row
 
 
-def map_metrics(y_true: np.ndarray, y_score: np.ndarray) -> dict:
+def map_metrics(
+    y_true: np.ndarray, y_score: np.ndarray, y_mask: np.ndarray | None = None
+) -> dict:
+    if y_mask is not None:
+        mask = np.asarray(y_mask).astype(bool)
+        if mask.ndim == 1 and np.asarray(y_true).ndim == 2:
+            mask = np.broadcast_to(mask[None, :], np.asarray(y_true).shape)
+        y_true = np.asarray(y_true)[mask]
+        y_score = np.asarray(y_score)[mask]
     top_l = int(y_true.sum())
     if top_l <= 0:
         return {
@@ -59,16 +71,16 @@ def map_metrics(y_true: np.ndarray, y_score: np.ndarray) -> dict:
     }
 
 
-def _map_specs(target: dict, pred: dict) -> list[tuple[str, str, str]]:
+def _map_specs(target: dict, pred: dict) -> list[tuple[str, str, str, str | None]]:
     specs = [
-        ("A_base", "A_base_label", "A_base"),
-        ("A_backbone", "A_backbone_label", "A_backbone"),
-        ("A_contact", "A_contact_label", "A_contact"),
+        ("A_base", "A_base_label", "A_base", "A_base_mask"),
+        ("A_backbone", "A_backbone_label", "A_backbone", "pwm_mask"),
+        ("A_contact", "A_contact_label", "A_contact", "pwm_mask"),
     ]
     if "A_base_label" not in target and "A_label" in target and "A" in pred:
-        specs[0] = ("A_base", "A_label", "A")
+        specs[0] = ("A_base", "A_label", "A", None)
     return [
-        (prefix, label_key, pred_key)
-        for prefix, label_key, pred_key in specs
+        (prefix, label_key, pred_key, mask_key)
+        for prefix, label_key, pred_key, mask_key in specs
         if label_key in target and pred_key in pred
     ]

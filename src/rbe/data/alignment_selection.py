@@ -8,6 +8,7 @@ from rbe.data.alignment import (
     PWMAlignment,
     align_pwm_to_dna,
     enumerate_pwm_to_dna_alignments,
+    enumerate_partial_pwm_to_dna_alignments,
 )
 from rbe.data.contact_labels import ContactCutoffs, compute_contact_labels
 from rbe.data.structure_types import ResidueRecord
@@ -62,14 +63,15 @@ def select_pwm_dna_alignment(
 
     if config.contact_policy == "sequence_only":
         alignment = align_pwm_to_dna(pwm_target, dna, score_mode=config.score_mode)
+        mode = "partial_auto_pwm_dna" if (alignment.slot_to_dna_index < 0).any() else "auto_pwm_dna"
         return alignment.slot_to_dna_index, _alignment_meta(
             alignment=alignment,
-            mode="auto_pwm_dna",
+            mode=mode,
             candidate_count=0,
             contact_candidate_count=0,
         )
 
-    alignment, candidate_count, contact_candidate_count = (
+    alignment, candidate_count, contact_candidate_count, used_partial = (
         select_contact_constrained_alignment(
             pwm_target=pwm_target,
             protein=protein,
@@ -79,7 +81,11 @@ def select_pwm_dna_alignment(
     )
     return alignment.slot_to_dna_index, _alignment_meta(
         alignment=alignment,
-        mode="contact_constrained_pwm_dna",
+        mode=(
+            "partial_contact_constrained_pwm_dna"
+            if used_partial
+            else "contact_constrained_pwm_dna"
+        ),
         candidate_count=candidate_count,
         contact_candidate_count=contact_candidate_count,
     )
@@ -90,13 +96,21 @@ def select_contact_constrained_alignment(
     protein: list[ResidueRecord],
     dna: list[ResidueRecord],
     config: AlignmentSelectionConfig,
-) -> tuple[PWMAlignment, int, int]:
+) -> tuple[PWMAlignment, int, int, bool]:
     candidates = enumerate_pwm_to_dna_alignments(
         pwm_target, dna, score_mode=config.score_mode
     )
+    used_partial = False
+    if not candidates:
+        candidates = enumerate_partial_pwm_to_dna_alignments(
+            pwm_target, dna, score_mode=config.score_mode
+        )
+        used_partial = True
     if not candidates:
         motif_len = pwm_target.shape[0]
-        raise ValueError(f"No selected DNA chain is long enough for PWM length {motif_len}.")
+        raise ValueError(
+            f"No selected DNA chain can be aligned to PWM length {motif_len}."
+        )
 
     valid = []
     for candidate in candidates:
@@ -125,7 +139,7 @@ def select_contact_constrained_alignment(
         )
 
     best, _ = max(valid, key=lambda item: item[0].score)
-    return best, len(candidates), len(valid)
+    return best, len(candidates), len(valid), used_partial
 
 
 def contact_counts_pass(

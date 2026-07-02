@@ -63,3 +63,66 @@ def test_best_threshold_metrics_are_global_diagnostics():
     assert metrics["f1_at_0.5"] == 0.0
     assert metrics["best_f1_diagnostic"] == 1.0
     assert metrics["best_f1_threshold_diagnostic"] < 0.5
+
+
+def test_evaluate_pair_masks_unknown_A_base_positions(tmp_path):
+    target = tmp_path / "sample.npz"
+    pred = tmp_path / "sample.pred.npz"
+    pwm = np.asarray([[0.25, 0.25, 0.25, 0.25]], dtype=np.float32)
+    A_base = np.asarray([[1, 1]], dtype=np.float32)
+    A_base_mask = np.asarray([[1, 0]], dtype=np.float32)
+    A_backbone = np.zeros_like(A_base)
+    site = A_base.max(axis=1)
+    np.savez_compressed(
+        target,
+        pwm_target=pwm,
+        A_base_label=A_base,
+        A_base_mask=A_base_mask,
+        A_backbone_label=A_backbone,
+        A_contact_label=A_base,
+        site_label=site,
+    )
+    np.savez_compressed(
+        pred,
+        pwm=pwm,
+        A_base=np.asarray([[0.9, 0.1]], dtype=np.float32),
+        A_backbone=A_backbone,
+        A_contact=A_base,
+        site_prob=site,
+    )
+
+    row = evaluate_pair(target, pred)
+
+    assert row["A_base_top_l"] == 1.0
+    assert row["A_base_top_l_precision"] == 1.0
+
+
+def test_evaluate_pair_masks_unobserved_pwm_columns_for_contact_maps(tmp_path):
+    target = tmp_path / "sample.npz"
+    pred = tmp_path / "sample.pred.npz"
+    pwm = np.asarray([[0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25]], dtype=np.float32)
+    pwm_mask = np.asarray([1, 0], dtype=np.float32)
+    label = np.asarray([[1, 1]], dtype=np.float32)
+    np.savez_compressed(
+        target,
+        pwm_target=pwm,
+        pwm_mask=pwm_mask,
+        A_base_label=label,
+        A_base_mask=np.asarray([[1, 0]], dtype=np.float32),
+        A_backbone_label=label,
+        A_contact_label=label,
+        site_label=np.ones((1,), dtype=np.float32),
+    )
+    np.savez_compressed(
+        pred,
+        pwm=pwm,
+        A_base=np.asarray([[0.9, 0.1]], dtype=np.float32),
+        A_backbone=np.asarray([[0.9, 0.1]], dtype=np.float32),
+        A_contact=np.asarray([[0.9, 0.1]], dtype=np.float32),
+        site_prob=np.ones((1,), dtype=np.float32),
+    )
+
+    row = evaluate_pair(target, pred)
+
+    assert row["A_backbone_top_l"] == 1.0
+    assert row["A_contact_top_l"] == 1.0

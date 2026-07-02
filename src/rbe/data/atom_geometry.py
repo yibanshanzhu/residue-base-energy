@@ -17,7 +17,7 @@ def heavy_atom_coords(residue: ResidueRecord) -> np.ndarray:
     return np.stack(coords).astype(np.float32)
 
 
-def base_heavy_atom_coords(residue: ResidueRecord) -> np.ndarray:
+def try_base_heavy_atom_coords(residue: ResidueRecord) -> np.ndarray | None:
     coords = [
         atom.coord
         for atom in residue.atoms
@@ -26,8 +26,15 @@ def base_heavy_atom_coords(residue: ResidueRecord) -> np.ndarray:
         and atom.name.strip().upper() not in DNA_BACKBONE_ATOMS
     ]
     if not coords:
-        raise ValueError(f"DNA residue {residue.residue_id} has no base heavy atoms.")
+        return None
     return np.stack(coords).astype(np.float32)
+
+
+def base_heavy_atom_coords(residue: ResidueRecord) -> np.ndarray:
+    coords = try_base_heavy_atom_coords(residue)
+    if coords is None:
+        raise ValueError(f"DNA residue {residue.residue_id} has no base heavy atoms.")
+    return coords
 
 
 def backbone_heavy_atom_coords(residue: ResidueRecord) -> np.ndarray:
