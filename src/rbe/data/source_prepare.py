@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import time
 import urllib.request
 
 import numpy as np
@@ -127,7 +128,21 @@ def download_structure(sample: SourceSample, destination: Path) -> None:
     url = RCSB_DOWNLOAD_URLS[sample.structure_format].format(
         structure_id=sample.structure_id.upper()
     )
-    urllib.request.urlretrieve(url, destination)
+    tmp_destination = destination.with_name(f"{destination.name}.tmp")
+    last_error: Exception | None = None
+    for attempt in range(5):
+        try:
+            tmp_destination.unlink(missing_ok=True)
+            urllib.request.urlretrieve(url, tmp_destination)
+            tmp_destination.replace(destination)
+            return
+        except Exception as exc:
+            last_error = exc
+            tmp_destination.unlink(missing_ok=True)
+            if attempt < 4:
+                time.sleep(2)
+    assert last_error is not None
+    raise last_error
 
 
 def label_counts(npz_path: str | Path) -> dict[str, int]:
