@@ -4,6 +4,17 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
+# Python build/package metadata
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Logs and ad-hoc run output
+*.log
+*.out
+nohup.out
+
 /data/
 /runs/
 /predictions/

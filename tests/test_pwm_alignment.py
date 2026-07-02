@@ -3,8 +3,13 @@ from __future__ import annotations
 import numpy as np
 
 from rbe.data.alignment import align_pwm_to_dna
+from rbe.data.alignment_selection import (
+    AlignmentContactConstraints,
+    AlignmentSelectionConfig,
+    select_contact_constrained_alignment,
+)
+from rbe.data.contact_labels import ContactCutoffs
 from rbe.data.pdb import AtomRecord, ResidueRecord
-from rbe.data.process_complex import _select_contact_constrained_alignment
 
 
 def _dna(sequence: str, chain: str = "B") -> list[ResidueRecord]:
@@ -107,24 +112,21 @@ def test_ic_weighted_log_likelihood_prioritizes_informative_columns():
 
 
 def test_contact_constrained_alignment_skips_noncontact_sequence_match():
-    args = type(
-        "Args",
-        (),
-        {
-            "alignment_score": "ic_log_likelihood",
-            "base_contact_cutoff": 4.5,
-            "backbone_contact_cutoff": 5.0,
-            "alignment_min_base_pairs": 0,
-            "alignment_min_contact_pairs": 1,
-            "alignment_min_site_residues": 1,
-        },
-    )()
+    config = AlignmentSelectionConfig(
+        score_mode="ic_log_likelihood",
+        contact_cutoffs=ContactCutoffs(base=4.5, backbone=5.0),
+        contact_constraints=AlignmentContactConstraints(
+            min_base_pairs=0,
+            min_contact_pairs=1,
+            min_site_residues=1,
+        ),
+    )
     alignment, candidate_count, contact_candidate_count = (
-        _select_contact_constrained_alignment(
+        select_contact_constrained_alignment(
             pwm_target=_pwm("AAA"),
             protein=_protein_near_origin(),
             dna=_dna_with_coords("AAATTTAAA", contacted_index=6),
-            args=args,
+            config=config,
         )
     )
     assert candidate_count > contact_candidate_count >= 1

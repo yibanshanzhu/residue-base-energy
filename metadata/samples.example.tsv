@@ -1,0 +1,2 @@
+sample_id	split	structure_id	structure_path	structure_format	protein_chains	dna_chains	motif_id	motif_source	motif_version	motif_path	notes
+smad3_1ozj_A	example	1ozj	../examples/smad3_1ozj/1ozj.pdb	pdb	A	C,D	SMAD3_HUMAN.H11MO.0.B	HOCOMOCO	DeepPBS-vendored	../examples/smad3_1ozj/smad3_hocomoco_pwm.txt	local example source row

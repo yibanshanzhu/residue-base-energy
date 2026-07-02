@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import numpy as np
-import torch
 
 
 def extract_esm2_t33_hidden(sequence: str, device: str = "cpu") -> np.ndarray:
@@ -11,10 +10,12 @@ def extract_esm2_t33_hidden(sequence: str, device: str = "cpu") -> np.ndarray:
             f"got {len(sequence)}."
         )
     try:
+        import torch
         import esm
     except ImportError as exc:
         raise RuntimeError(
-            "fair-esm is required for ESM2 hidden extraction. Install with `pip install fair-esm`."
+            "torch and fair-esm are required for ESM2 hidden extraction. "
+            "Install fair-esm with `pip install fair-esm`."
         ) from exc
 
     model, alphabet = esm.pretrained.esm2_t33_650M_UR50D()
@@ -29,4 +30,3 @@ def extract_esm2_t33_hidden(sequence: str, device: str = "cpu") -> np.ndarray:
         result = model(tokens, repr_layers=[33], return_contacts=False)
     hidden = result["representations"][33][0, 1 : len(sequence) + 1]
     return hidden.detach().cpu().numpy().astype(np.float32)
-

@@ -7,24 +7,14 @@ import numpy as np
 import torch
 
 from rbe.data.dataset import RBEDataset, to_device
-from rbe.eval.evaluate_manifest import load_model, pred_path_for_sample, read_manifest
-from rbe.utils import resolve_device
-
-
-PREDICTION_KEYS = (
-    "pwm",
-    "pwm_logits",
-    "A",
-    "A_base",
-    "A_base_logits",
-    "A_backbone",
-    "A_backbone_logits",
-    "A_contact",
-    "A_contact_logits",
-    "E",
-    "site_prob",
-    "site_score",
+from rbe.eval.io import pred_path_for_sample, read_manifest
+from rbe.eval.prediction import (
+    PREDICTION_KEYS,
+    load_model,
+    run_model_on_sample,
+    sample_metadata_arrays,
 )
+from rbe.utils import resolve_device
 
 
 def predict_sample_ensemble(
@@ -34,19 +24,11 @@ def predict_sample_ensemble(
     device: torch.device,
 ) -> None:
     sample = to_device(RBEDataset([sample_path])[0], device)
-    motif_len = int(sample["pwm_target"].shape[0])
     sums: dict[str, np.ndarray] = {}
 
     with torch.no_grad():
         for model in models:
-            outputs = model(
-                esm2_repr=sample["esm2_repr"],
-                aa_idx=sample["aa_idx"],
-                residue_xyz=sample["residue_xyz"],
-                edge_index=sample["edge_index"],
-                edge_attr=sample["edge_attr"],
-                motif_len=motif_len,
-            )
+            outputs = run_model_on_sample(sample, model)
             for key in PREDICTION_KEYS:
                 if key not in outputs:
                     continue
@@ -57,13 +39,7 @@ def predict_sample_ensemble(
         key: (value / float(len(models))).astype(np.float32)
         for key, value in sums.items()
     }
-    arrays.update(
-        {
-            "residue_ids": np.asarray(sample["residue_ids"]),
-            "residue_aa": np.asarray(sample["residue_aa"]),
-            "residue_xyz": sample["residue_xyz"].detach().cpu().numpy(),
-        }
-    )
+    arrays.update(sample_metadata_arrays(sample))
 
     output = Path(pred_path)
     output.parent.mkdir(parents=True, exist_ok=True)

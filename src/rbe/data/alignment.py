@@ -6,8 +6,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from rbe.constants import BASE_TO_IDX, DNA_BASE_TO_1
-from rbe.data.pdb import ResidueRecord
 from rbe.data.pwm import normalize_pwm
+from rbe.data.structure_types import ResidueRecord
 
 
 @dataclass(frozen=True)
