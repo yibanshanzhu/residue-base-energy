@@ -1,6 +1,16 @@
 from __future__ import annotations
 
+from functools import lru_cache
+
 import numpy as np
+
+
+@lru_cache(maxsize=2)
+def _load_esm2_t33(device: str):
+    import esm
+
+    model, alphabet = esm.pretrained.esm2_t33_650M_UR50D()
+    return model.eval().to(device), alphabet
 
 
 def extract_esm2_t33_hidden(sequence: str, device: str = "cpu") -> np.ndarray:
@@ -9,19 +19,9 @@ def extract_esm2_t33_hidden(sequence: str, device: str = "cpu") -> np.ndarray:
             "ESM2-t33 has a practical single-sequence length limit around 1022 residues; "
             f"got {len(sequence)}."
         )
-    try:
-        import torch
-        import esm
-    except ImportError as exc:
-        raise RuntimeError(
-            "torch and fair-esm are required for ESM2 hidden extraction. "
-            "Install fair-esm with `pip install fair-esm`."
-        ) from exc
+    import torch
 
-    model, alphabet = esm.pretrained.esm2_t33_650M_UR50D()
-    model = model.eval().to(device)
-    for param in model.parameters():
-        param.requires_grad_(False)
+    model, alphabet = _load_esm2_t33(str(device))
     batch_converter = alphabet.get_batch_converter()
     _, _, tokens = batch_converter([("protein", sequence)])
     tokens = tokens.to(device)

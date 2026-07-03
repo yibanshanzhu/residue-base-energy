@@ -448,7 +448,7 @@ python -m rbe.eval.evaluate_manifest \
 | 方法 | Benchmark | 输入 | PWM MAE |
 |---|---|---|---:|
 | DeepPBS official | official `id.txt`, full 130 | protein-DNA complex | median 0.4796 |
-| DeepPBS reproduced | official `id.txt`, full 130 | protein-DNA complex | median 0.4985, mean 0.5412 |
+| DeepPBS reproduced | official `id.txt`, full 130 | protein-DNA complex | 未核验，不能作为当前依据 |
 | RBE ensemble | `id.txt` contact-valid 112 | protein monomer + motif length | mean 0.5801 |
 
 更公平的补充表：
