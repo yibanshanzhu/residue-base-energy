@@ -3,13 +3,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from rbe.eval.io import get_pwm, load_npz, pred_path_for_sample, read_manifest
-from rbe.eval.pair_metrics import evaluate_pair, map_metrics
+from rbe.eval.io import pred_path_for_sample, read_manifest
+from rbe.eval.pair_metrics import evaluate_pair
 from rbe.eval.prediction import load_model, predict_sample_npz
 from rbe.eval.reports import write_rows_tsv, write_summary_json, write_summary_tsv
 from rbe.eval.summary import (
+    global_pwm_mae_summary_row,
     global_site_summary_rows,
-    numeric_keys,
     print_summary,
     summarize_rows,
 )
@@ -39,7 +39,12 @@ def evaluate_manifest(args: argparse.Namespace) -> None:
             print(f"wrote {pred_path}")
         rows.append(evaluate_pair(sample_path, pred_path))
 
-    summary = summarize_rows(rows)
+    summary = [global_pwm_mae_summary_row(samples, pred_dir, args.pred_suffix)]
+    summary.extend(
+        row
+        for row in summarize_rows(rows)
+        if row["metric"] not in {"pwm_mae", "pwm_mae_sample"}
+    )
     summary.extend(global_site_summary_rows(samples, pred_dir, args.pred_suffix))
     per_sample_tsv = (
         Path(args.per_sample_tsv)

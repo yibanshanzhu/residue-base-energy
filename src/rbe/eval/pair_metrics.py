@@ -29,7 +29,8 @@ def evaluate_pair(target_path: str | Path, pred_path: str | Path) -> dict:
             row[f"{label_key[:-6]}_pos"] = float(target[label_key].sum())
 
     for key, value in pwm_metrics(get_pwm(target), get_pwm(pred)).items():
-        row[f"pwm_{key}"] = value
+        metric = "pwm_mae_sample" if key == "mae" else f"pwm_{key}"
+        row[metric] = value
 
     for prefix, label_key, pred_key, mask_key in _map_specs(target, pred):
         metrics = map_metrics(

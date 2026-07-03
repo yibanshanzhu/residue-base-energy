@@ -4,6 +4,7 @@ import numpy as np
 
 from rbe.eval.evaluate_manifest import evaluate_pair, summarize_rows
 from rbe.eval.metrics import best_threshold_metrics
+from rbe.eval.summary import global_pwm_mae_summary_row
 
 
 def _write_npz_pair(tmp_path, name: str):
@@ -43,6 +44,8 @@ def _write_npz_pair(tmp_path, name: str):
 def test_evaluate_pair_and_summary(tmp_path):
     target, pred = _write_npz_pair(tmp_path, "sample")
     row = evaluate_pair(target, pred)
+    assert row["pwm_mae_sample"] < 1e-6
+    assert "pwm_mae" not in row
     assert row["pwm_kl"] < 1e-6
     assert row["A_base_ap"] == 1.0
     assert row["A_backbone_top_l_precision"] == 1.0
@@ -63,6 +66,52 @@ def test_best_threshold_metrics_are_global_diagnostics():
     assert metrics["f1_at_0.5"] == 0.0
     assert metrics["best_f1_diagnostic"] == 1.0
     assert metrics["best_f1_threshold_diagnostic"] < 0.5
+
+
+def test_global_pwm_mae_pools_valid_columns_instead_of_samples(tmp_path):
+    pred_dir = tmp_path / "preds"
+    pred_dir.mkdir()
+    sample1 = tmp_path / "sample1.npz"
+    sample2 = tmp_path / "sample2.npz"
+
+    np.savez_compressed(
+        sample1,
+        pwm_target=np.asarray([[1.0, 0.0, 0.0, 0.0]], dtype=np.float32),
+        pwm_mask=np.asarray([1], dtype=np.float32),
+    )
+    np.savez_compressed(
+        pred_dir / "sample1.pred.npz",
+        pwm=np.asarray([[0.0, 1.0, 0.0, 0.0]], dtype=np.float32),
+    )
+    np.savez_compressed(
+        sample2,
+        pwm_target=np.asarray(
+            [
+                [0.25, 0.25, 0.25, 0.25],
+                [0.25, 0.25, 0.25, 0.25],
+                [0.25, 0.25, 0.25, 0.25],
+            ],
+            dtype=np.float32,
+        ),
+        pwm_mask=np.asarray([1, 1, 0], dtype=np.float32),
+    )
+    np.savez_compressed(
+        pred_dir / "sample2.pred.npz",
+        pwm=np.asarray(
+            [
+                [0.25, 0.25, 0.25, 0.25],
+                [0.25, 0.25, 0.25, 0.25],
+                [0.25, 0.25, 0.25, 0.25],
+            ],
+            dtype=np.float32,
+        ),
+    )
+
+    row = global_pwm_mae_summary_row([sample1, sample2], pred_dir, ".pred.npz")
+
+    assert row["metric"] == "pwm_mae"
+    assert row["n"] == 3
+    assert np.isclose(row["mean"], 2.0 / 3.0)
 
 
 def test_evaluate_pair_masks_unknown_A_base_positions(tmp_path):
