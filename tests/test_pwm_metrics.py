@@ -5,7 +5,7 @@ import numpy as np
 from rbe.eval.metrics import pwm_mae
 
 
-def test_pwm_mae_matches_deeppbs_position_l1_definition():
+def test_pwm_mae_matches_per_sample_position_l1_definition():
     target = np.asarray(
         [
             [0.7, 0.1, 0.1, 0.1],

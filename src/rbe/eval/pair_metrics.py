@@ -8,6 +8,7 @@ from rbe.eval.io import get_pwm, load_npz
 from rbe.eval.metrics import (
     average_precision,
     binary_metrics,
+    pwm_mae,
     pwm_metrics,
     top_l_precision,
 )
@@ -28,8 +29,13 @@ def evaluate_pair(target_path: str | Path, pred_path: str | Path) -> dict:
         if label_key in target:
             row[f"{label_key[:-6]}_pos"] = float(target[label_key].sum())
 
-    for key, value in pwm_metrics(get_pwm(target), get_pwm(pred)).items():
-        metric = "pwm_mae_sample" if key == "mae" else f"pwm_{key}"
+    target_pwm = get_pwm(target)
+    pred_pwm = get_pwm(pred)
+    pwm_mask = target["pwm_mask"] if "pwm_mask" in target else None
+    for key, value in pwm_metrics(target_pwm, pred_pwm).items():
+        metric = "pwm_mae" if key == "mae" else f"pwm_{key}"
+        if key == "mae":
+            value = pwm_mae(target_pwm, pred_pwm, mask=pwm_mask)
         row[metric] = value
 
     for prefix, label_key, pred_key, mask_key in _map_specs(target, pred):

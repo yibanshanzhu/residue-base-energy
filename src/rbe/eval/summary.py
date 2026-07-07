@@ -5,8 +5,7 @@ from typing import Iterable
 
 import numpy as np
 
-from rbe.data.pwm import normalize_pwm
-from rbe.eval.io import get_pwm, load_npz, pred_path_for_sample
+from rbe.eval.io import load_npz, pred_path_for_sample
 from rbe.eval.metrics import best_threshold_metrics
 
 
@@ -44,29 +43,6 @@ def summarize_rows(rows: list[dict]) -> list[dict]:
             }
         )
     return summary
-
-
-def global_pwm_mae_summary_row(
-    samples: list[Path], pred_dir: Path, suffix: str
-) -> dict:
-    errors = []
-    for sample_path in samples:
-        target = load_npz(sample_path)
-        pred = load_npz(pred_path_for_sample(sample_path, pred_dir, suffix))
-        target_pwm = normalize_pwm(get_pwm(target))
-        pred_pwm = normalize_pwm(get_pwm(pred))
-        valid = np.asarray(
-            target.get("pwm_mask", np.ones(target_pwm.shape[0])), dtype=bool
-        )
-        errors.append(np.abs(pred_pwm[valid] - target_pwm[valid]).sum(axis=1))
-
-    values = np.concatenate(errors).astype(np.float64)
-    return {
-        "metric": "pwm_mae",
-        "mean": float(values.mean()),
-        "std": float(values.std(ddof=0)),
-        "n": int(values.size),
-    }
 
 
 def global_site_summary_rows(samples: list[Path], pred_dir: Path, suffix: str) -> list[dict]:
@@ -112,7 +88,6 @@ def _global_metric_name(metric: str) -> str:
 def _preferred_metric_order() -> list[str]:
     return [
         "pwm_mae",
-        "pwm_mae_sample",
         "pwm_kl",
         "pwm_ic_pcc",
         "pwm_rc_aware_kl",
