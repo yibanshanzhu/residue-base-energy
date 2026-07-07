@@ -5,15 +5,9 @@ import numpy as np
 from rbe.data.pwm import normalize_pwm
 
 
-def pwm_mae(
-    target: np.ndarray, pred: np.ndarray, mask: np.ndarray | None = None
-) -> float:
+def pwm_mae(target: np.ndarray, pred: np.ndarray) -> float:
     target = normalize_pwm(target)
     pred = normalize_pwm(pred)
-    if mask is not None:
-        valid = np.asarray(mask, dtype=bool)
-        target = target[valid]
-        pred = pred[valid]
     per_position_l1 = np.sum(np.abs(target - pred), axis=1)
     return float(np.mean(per_position_l1))
 

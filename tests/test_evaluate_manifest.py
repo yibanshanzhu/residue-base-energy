@@ -67,7 +67,7 @@ def test_best_threshold_metrics_are_global_diagnostics():
     assert metrics["best_f1_threshold_diagnostic"] < 0.5
 
 
-def test_pwm_mae_summary_averages_masked_per_sample_values(tmp_path):
+def test_pwm_mae_summary_averages_per_sample_values(tmp_path):
     sample1 = tmp_path / "sample1.npz"
     pred1 = tmp_path / "sample1.pred.npz"
     sample2 = tmp_path / "sample2.npz"
@@ -111,9 +111,9 @@ def test_pwm_mae_summary_averages_masked_per_sample_values(tmp_path):
     by_metric = {item["metric"]: item for item in summarize_rows([row1, row2])}
 
     assert np.isclose(row1["pwm_mae"], 2.0)
-    assert np.isclose(row2["pwm_mae"], 0.0)
+    assert np.isclose(row2["pwm_mae"], 0.5)
     assert by_metric["pwm_mae"]["n"] == 2
-    assert np.isclose(by_metric["pwm_mae"]["mean"], 1.0)
+    assert np.isclose(by_metric["pwm_mae"]["mean"], 1.25)
 
 
 def test_evaluate_pair_masks_unknown_A_base_positions(tmp_path):
@@ -178,6 +178,6 @@ def test_evaluate_pair_masks_unobserved_pwm_columns_for_contact_maps(tmp_path):
 
     row = evaluate_pair(target, pred)
 
-    assert row["pwm_mae"] == 0.0
+    assert np.isclose(row["pwm_mae"], 0.75)
     assert row["A_backbone_top_l"] == 1.0
     assert row["A_contact_top_l"] == 1.0
