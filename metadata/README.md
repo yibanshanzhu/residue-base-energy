@@ -46,13 +46,22 @@ data/example_from_sources/failed.tsv
 
 ## Import DeepPBS Folds As Source Manifests
 
-Convert DeepPBS fold files first:
+For full PWM targets, first download untrimmed motif sources:
+
+```bash
+python scripts/download_motif_sources.py \
+  --out-root resources/motif_sources \
+  --motif-index resources/motif_sources/motif_index.tsv
+```
+
+Convert DeepPBS fold files with the untrimmed motif index:
 
 ```bash
 python scripts/import_deeppbs_source_manifest.py \
   --fold-file valid0.txt \
   --output metadata/deeppbs_valid0_sources.tsv \
-  --structure-format mmcif
+  --structure-format mmcif \
+  --motif-index resources/motif_sources/motif_index.tsv
 ```
 
 Then prepare from the generated source manifest:

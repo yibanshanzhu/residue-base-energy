@@ -60,7 +60,22 @@ def test_source_manifest_roundtrip(tmp_path):
     assert copied[0].motif_version == "2026"
 
 
-def test_import_deeppbs_sources_writes_public_source_manifest(tmp_path):
+def test_import_deeppbs_sources_uses_untrimmed_motif_index(tmp_path):
+    curated_root = tmp_path / "curated"
+    fold_dir = curated_root / "folds"
+    fold_dir.mkdir(parents=True)
+    (fold_dir / "valid0.txt").write_text("1abc_A_MA0001.1.jaspar.npz\n")
+
+    motif_dir = tmp_path / "motifs"
+    motif_dir.mkdir()
+    motif_path = motif_dir / "MA0001.1.jaspar.txt"
+    motif_path.write_text("A C G T\n0.25 0.25 0.25 0.25\n")
+    motif_index = tmp_path / "motif_index.tsv"
+    motif_index.write_text(
+        "motif_id\tmotif_source\tmotif_version\tmotif_path\n"
+        f"MA0001.1.jaspar\tJASPAR\tMA0001.1-untrimmed\t{motif_path}\n"
+    )
+
     output = tmp_path / "deeppbs_sources.tsv"
     args = type(
         "Args",
@@ -68,7 +83,8 @@ def test_import_deeppbs_sources_writes_public_source_manifest(tmp_path):
         {
             "fold_file": "valid0.txt",
             "output": str(output),
-            "curated_root": "resources/deeppbs_curated",
+            "curated_root": str(curated_root),
+            "motif_index": str(motif_index),
             "split": "valid0",
             "structure_format": "mmcif",
             "structure_cache_dir": str(tmp_path / "raw" / "structures"),
@@ -77,9 +93,8 @@ def test_import_deeppbs_sources_writes_public_source_manifest(tmp_path):
     )()
     import_deeppbs_sources(args)
 
-    samples = read_source_manifest(output, limit=3)
-    assert samples[0].split == "valid0"
-    assert samples[0].structure_id
-    assert samples[0].structure_path.endswith(".cif")
-    assert samples[0].motif_source == "DeepPBS-vendored"
-    assert Path(samples[0].resolve_motif_path()).exists()
+    sample = read_source_manifest(output)[0]
+    assert sample.motif_source == "JASPAR"
+    assert sample.motif_version == "MA0001.1-untrimmed"
+    assert sample.resolve_motif_path() == motif_path
+    assert "untrimmed_motif_index" in sample.notes
