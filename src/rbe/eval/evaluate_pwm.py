@@ -73,10 +73,16 @@ def evaluate(args: argparse.Namespace) -> None:
     target = _load_npz(args.target)
     pred = _load_npz(args.pred)
     target_pwm = _get_pwm(target)
+    if "pwm_mask" not in target:
+        raise ValueError(f"{args.target}: missing pwm_mask required for masked PWM MAE.")
 
     rows = []
     for method, path in [("ours", args.pred)] + _parse_baseline(args.baseline):
-        metrics = pwm_metrics(target_pwm, _get_pwm(_load_npz(path)))
+        metrics = pwm_metrics(
+            target_pwm,
+            _get_pwm(_load_npz(path)),
+            mae_mask=target["pwm_mask"],
+        )
         rows.append({"method": method, **metrics})
 
     print("PWM")

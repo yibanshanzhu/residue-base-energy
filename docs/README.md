@@ -11,6 +11,7 @@
 | [`code_structure.md`](code_structure.md) | 当前代码模块职责和 CLI 边界 |
 | [`../metadata/README.md`](../metadata/README.md) | source manifest schema 和数据准备命令 |
 | [`../resources/deeppbs_curated/README.md`](../resources/deeppbs_curated/README.md) | DeepPBS fold 映射资源及未裁剪 PWM 入口 |
+| [`../runbook.md`](../runbook.md) | 服务器数据准备、训练和评估步骤 |
 
 ## What To Read First
 

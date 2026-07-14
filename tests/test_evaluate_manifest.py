@@ -24,6 +24,7 @@ def _write_npz_pair(tmp_path, name: str):
     np.savez_compressed(
         target,
         pwm_target=pwm,
+        pwm_mask=np.ones(pwm.shape[0], dtype=np.float32),
         A_base_label=A_base,
         A_backbone_label=A_backbone,
         A_contact_label=A_contact,
@@ -56,6 +57,17 @@ def test_evaluate_pair_and_summary(tmp_path):
     assert by_metric["site_f1"]["mean"] == 1.0
 
 
+def test_evaluate_pair_requires_pwm_mask(tmp_path):
+    target = tmp_path / "sample.npz"
+    pred = tmp_path / "sample.pred.npz"
+    pwm = np.asarray([[0.25, 0.25, 0.25, 0.25]], dtype=np.float32)
+    np.savez_compressed(target, pwm_target=pwm)
+    np.savez_compressed(pred, pwm=pwm)
+
+    with np.testing.assert_raises_regex(ValueError, "missing pwm_mask"):
+        evaluate_pair(target, pred)
+
+
 def test_best_threshold_metrics_are_global_diagnostics():
     y_true = np.asarray([1, 1, 0, 0], dtype=np.int64)
     y_score = np.asarray([0.42, 0.38, 0.10, 0.05], dtype=np.float32)
@@ -67,7 +79,7 @@ def test_best_threshold_metrics_are_global_diagnostics():
     assert metrics["best_f1_threshold_diagnostic"] < 0.5
 
 
-def test_pwm_mae_summary_averages_per_sample_values(tmp_path):
+def test_masked_pwm_mae_summary_averages_per_sample_values(tmp_path):
     sample1 = tmp_path / "sample1.npz"
     pred1 = tmp_path / "sample1.pred.npz"
     sample2 = tmp_path / "sample2.npz"
@@ -111,9 +123,9 @@ def test_pwm_mae_summary_averages_per_sample_values(tmp_path):
     by_metric = {item["metric"]: item for item in summarize_rows([row1, row2])}
 
     assert np.isclose(row1["pwm_mae"], 2.0)
-    assert np.isclose(row2["pwm_mae"], 0.5)
+    assert np.isclose(row2["pwm_mae"], 0.0)
     assert by_metric["pwm_mae"]["n"] == 2
-    assert np.isclose(by_metric["pwm_mae"]["mean"], 1.25)
+    assert np.isclose(by_metric["pwm_mae"]["mean"], 1.0)
 
 
 def test_evaluate_pair_masks_unknown_A_base_positions(tmp_path):
@@ -127,6 +139,7 @@ def test_evaluate_pair_masks_unknown_A_base_positions(tmp_path):
     np.savez_compressed(
         target,
         pwm_target=pwm,
+        pwm_mask=np.ones(pwm.shape[0], dtype=np.float32),
         A_base_label=A_base,
         A_base_mask=A_base_mask,
         A_backbone_label=A_backbone,
@@ -178,6 +191,7 @@ def test_evaluate_pair_masks_unobserved_pwm_columns_for_contact_maps(tmp_path):
 
     row = evaluate_pair(target, pred)
 
-    assert np.isclose(row["pwm_mae"], 0.75)
+    assert np.isclose(row["pwm_mae"], 0.0)
+    assert row["pwm_kl"] > 0.0
     assert row["A_backbone_top_l"] == 1.0
     assert row["A_contact_top_l"] == 1.0

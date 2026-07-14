@@ -52,17 +52,17 @@ motif target 必须来自公共 motif database 的未裁剪完整 PWM。DeepPBS 
 | `pwm_mask[j] == 1` | 该 column 可生成结构 contact label |
 | `pwm_mask[j] == 0` | 该 column 不参与 contact/map 监督与评估 |
 
-`pwm_mask`描述的是结构可见性，不是 PWM target 是否有效。PWM target、PWM loss 和主线 PWM 评估都使用完整的 `M x 4` 矩阵。
+`pwm_mask`描述的是结构可见性，不是 PWM target 是否有效。PWM target 和 PWM loss 仍使用完整的 `M x 4` 矩阵；本分支仅用它限定 MAE 的评估范围。
 
 ## PWM Evaluation
 
 对每个 sample，当前 MAE 定义为：
 
 ```text
-MAE_sample = mean_j sum_b |PWM_target[j,b] - PWM_pred[j,b]|
+MAE_sample = mean_{j: pwm_mask[j]=1} sum_b |PWM_target[j,b] - PWM_pred[j,b]|
 ```
 
-数据集结果是 `mean_sample(MAE_sample)`。KL、IC-PCC 和 RC-aware KL 同样先按完整 PWM 计算单样本值，再对 samples 求均值；不存在跨样本 pooling columns 的逻辑。
+数据集结果是 `mean_sample(MAE_sample)`。这保证每个 sample 权重相同，不会把不同样本的有效 columns 汇集后再求均值。KL、IC-PCC 和 RC-aware KL 仍按完整 PWM 计算单样本值，再对 samples 求均值。
 
 ## Boundary
 
@@ -72,4 +72,4 @@ MAE_sample = mean_j sum_b |PWM_target[j,b] - PWM_pred[j,b]|
 | 可比主指标 | PWM metrics |
 | site 指标 | 可作为附加结果，不和 DeepPBS 直接等价 |
 | partial structure | 用 `pwm_mask` 和 `slot_to_dna_index=-1` 表达不可见 columns |
-| PWM 范围 | 主线评估完整、未裁剪 PWM；masked 范围作为独立分支实验 |
+| PWM 范围 | MAE 只评估 `pwm_mask=1` columns；其他 PWM 指标评估完整 PWM |

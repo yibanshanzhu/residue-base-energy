@@ -28,7 +28,13 @@ def evaluate_pair(target_path: str | Path, pred_path: str | Path) -> dict:
         if label_key in target:
             row[f"{label_key[:-6]}_pos"] = float(target[label_key].sum())
 
-    for key, value in pwm_metrics(get_pwm(target), get_pwm(pred)).items():
+    if "pwm_mask" not in target:
+        raise ValueError(f"{target_path}: missing pwm_mask required for masked PWM MAE.")
+    for key, value in pwm_metrics(
+        get_pwm(target),
+        get_pwm(pred),
+        mae_mask=target["pwm_mask"],
+    ).items():
         row[f"pwm_{key}"] = value
 
     for prefix, label_key, pred_key, mask_key in _map_specs(target, pred):
