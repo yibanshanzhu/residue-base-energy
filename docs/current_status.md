@@ -2,29 +2,41 @@
 
 ## One-Line State
 
-RBE 已经有可运行的数据入口、训练入口和评估入口；partial PWM/masked supervision 已进入代码，当前需要重建数据并重新跑 benchmark。
+RBE 已具备完整的数据准备、训练、推理和评估入口；motif 源头已切换为公共数据库的未裁剪 PWM，当前需要基于新数据源重建数据并重跑 benchmark。
 
 ## Completed
 
 | 事项 | 状态 | 位置 |
 |---|---|---|
 | source manifest 数据源头 | done | [`metadata/README.md`](../metadata/README.md) |
+| 按 DeepPBS motif ID 下载未裁剪 PWM | done | `scripts/download_motif_sources.py` |
+| fold + motif index 转 source manifest | done | `scripts/import_deeppbs_source_manifest.py` |
 | PDB/mmCIF 结构解析 | done | `rbe.data.structure_io` |
 | contact-constrained PWM-DNA alignment | done | `rbe.data.alignment_selection` |
 | base/backbone/contact/site labels | done | `rbe.data.contact_labels` |
 | single complex 到 training cache | done | `rbe.data.processed_sample` |
 | source manifest 批量 prepare | done | `rbe.data.source_prepare` |
-| DeepPBS fold 转 source manifest | done | `scripts/import_deeppbs_source_manifest.py` |
-| partial PWM/masked supervision | done | `pwm_mask` + `slot_to_dna_index=-1` |
+| partial structure supervision | done | `pwm_mask` + `slot_to_dna_index=-1` |
 | manifest 评估 | done | `rbe.eval.evaluate_manifest` |
+| 完整 PWM 的 per-sample 指标 | done | `rbe.eval.metrics` + `rbe.eval.summary` |
 | DeepPBS prediction 对齐到 RBE slots | partial | `rbe.eval.deeppbs_alignment` |
-| 代码职责拆分 | done | [`code_structure.md`](code_structure.md) |
+
+## Current Metric Definition
+
+| 项 | 当前行为 |
+|---|---|
+| PWM target | 公共数据库的未裁剪完整 PWM |
+| 单样本 MAE | 每个 column 的四碱基 L1 之和，再对该 sample 的全部 columns 求均值 |
+| 数据集汇总 | 先得到每个 sample 的指标，再对 samples 求均值 |
+| `pwm_mask` | 只用于有结构依据的 contact/map 监督与评估，不参与 PWM 指标 |
+
+`masked-pwm-per-sample` 分支用于实验“单样本只在 `pwm_mask=1` columns 上计算 PWM 指标”，目前尚未实现该差异。
 
 ## Current Bottleneck
 
 | 问题 | 影响 |
 |---|---|
-| 旧 training cache 需要重建 | 新 schema 才会包含 `pwm_mask` 和 partial `slot_to_dna_index` |
+| 旧 training cache 需要重建 | 旧缓存内仍可能保存 DeepPBS 裁剪后的 PWM target |
 | 部分 DNA residue 缺 base atoms | `A_base_mask=0`，base contact 不参与监督 |
 | DeepPBS same-subset rerun 没完全闭合 | 不能声称严格超过 DeepPBS |
 
@@ -39,9 +51,9 @@ RBE 已经有可运行的数据入口、训练入口和评估入口；partial PW
 
 | 优先级 | 任务 | 验收标准 |
 |---:|---|---|
-| P0 | 重建 source manifest training cache | `dna_shorter_than_pwm` 样本能保留可见 DNA overlap 部分 |
+| P0 | 用未裁剪 motif index 重建 source manifest 和 training cache | manifest 的 `motif_path` 全部指向未裁剪 PWM |
 | P0 | 重新训练和评估 | 输出新的 `eval_summary.tsv` |
-| P1 | 统计新 prepare failure | 确认 missing base atom 和 DNA shorter failure 下降 |
+| P1 | 实现并验证 masked branch | 只改变 PWM 指标的 column 范围，仍保持 per-sample 汇总 |
 | P1 | DeepPBS same-subset rerun | 同一批 samples、同一套 PWM metrics 可比较 |
 | P2 | group-level benchmark | 去掉 same-PDB / same-PDB+PWM 重复计权干扰 |
 
@@ -49,9 +61,9 @@ RBE 已经有可运行的数据入口、训练入口和评估入口；partial PW
 
 | 可以说 | 不能说 |
 |---|---|
-| RBE 在 contact-valid subset 上有 PWM/site 信号 | RBE 已严格超过 DeepPBS |
+| RBE 支持完整 PWM target 与部分结构监督 | RBE 已严格超过 DeepPBS |
 | RBE 推理时不需要 DNA 坐标 | RBE 和 DeepPBS 是完全相同任务 |
-| source manifest 已经把数据源头切到 PDB/mmCIF + motif database | 当前 benchmark 已完全闭合 |
+| 新 source manifest 流程只接受未裁剪 motif index | 旧 benchmark 已代表新数据源结果 |
 
 ## Active Reading Path
 
@@ -61,4 +73,3 @@ RBE 已经有可运行的数据入口、训练入口和评估入口；partial PW
 | 方法定义 | [`method.md`](method.md) |
 | 代码边界 | [`code_structure.md`](code_structure.md) |
 | 数据 manifest | [`../metadata/README.md`](../metadata/README.md) |
-| 历史记录 | [`archive/README.md`](archive/README.md) |

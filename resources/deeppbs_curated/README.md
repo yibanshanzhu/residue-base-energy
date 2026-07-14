@@ -1,21 +1,16 @@
 # DeepPBS Curated Mapping Resources
 
-This directory vendors the small DeepPBS curated resources needed to import
-DeepPBS folds into RBE source manifests.
+这个目录保留 DeepPBS fold 映射和旧 PWM，用于追溯 motif ID。
 
 | Path | Content |
 |---|---|
 | `folds/*.txt` | DeepPBS curated `pdb_chain_pwmid.npz` fold entries |
-| `pwms/*.txt` | A/C/G/T PWM matrices exported from DeepPBS `pwms.pickle` |
+| `pwms/*.txt` | 从 DeepPBS `pwms.pickle` 导出的 trimmed PWM，仅用于 ID 枚举和历史核对 |
 | `summary.tsv` | Resource counts |
 
-PWM files in this directory are trimmed with the DeepPBS rule: remove
-low-information columns from both ends until information content is `> 0.5`.
+`pwms/*.txt`使用 DeepPBS 的 trimming 规则：从两端删除低信息量 columns，直到端点 information content `> 0.5`。
 
-Runtime data prep uses these resources through source manifest conversion.
-
-For full-target RBE evaluation, do not use these trimmed PWM files as the motif
-source. First download untrimmed public motif sources and build an index:
+当前数据流程禁止把这些 trimmed PWM 写入 source manifest。先下载未裁剪公共 PWM 并生成 index：
 
 ```bash
 python scripts/download_motif_sources.py \
@@ -23,7 +18,7 @@ python scripts/download_motif_sources.py \
   --motif-index resources/motif_sources/motif_index.tsv
 ```
 
-Convert fold entries to source manifest rows:
+再用 fold 和 index 生成 source manifest。`--motif-index`只读取已有 index，不会重复下载：
 
 ```bash
 python scripts/import_deeppbs_source_manifest.py \

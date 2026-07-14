@@ -46,7 +46,7 @@ data/example_from_sources/failed.tsv
 
 ## Import DeepPBS Folds As Source Manifests
 
-For full PWM targets, first download untrimmed motif sources:
+当前流程只接受未裁剪的完整 PWM。先按 DeepPBS fold 中的 motif ID 下载公共数据库记录：
 
 ```bash
 python scripts/download_motif_sources.py \
@@ -54,7 +54,16 @@ python scripts/download_motif_sources.py \
   --motif-index resources/motif_sources/motif_index.tsv
 ```
 
-Convert DeepPBS fold files with the untrimmed motif index:
+下载脚本同时生成四列 index：
+
+| Column | Meaning |
+|---|---|
+| `motif_id` | DeepPBS fold 使用的 motif ID |
+| `motif_source` | `JASPAR` 或 `HOCOMOCO` |
+| `motif_version` | 下载的数据版本 |
+| `motif_path` | 未裁剪 PWM 的本地路径，相对 index 文件解析 |
+
+`--motif-index`只是把这个已存在的 index 传给导入脚本，不会触发下载。导入 DeepPBS fold：
 
 ```bash
 python scripts/import_deeppbs_source_manifest.py \

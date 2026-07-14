@@ -39,6 +39,31 @@ PDB/mmCIF structure + motif database PWM + chain selection + split
 
 具体 schema 见 [`../metadata/README.md`](../metadata/README.md)。
 
+motif target 必须来自公共 motif database 的未裁剪完整 PWM。DeepPBS vendored PWM 经过端点 trimming，只用于追溯旧资源，不进入当前 source manifest。
+
+## Structural Visibility
+
+完整 PWM 的长度是 `M`，但 PDB 结构不一定包含所有对应 DNA bases：
+
+| 值 | 含义 |
+|---|---|
+| `slot_to_dna_index[j] >= 0` | motif column `j` 在结构中找到对应 DNA residue |
+| `slot_to_dna_index[j] == -1` | motif column `j` 没有结构对应物 |
+| `pwm_mask[j] == 1` | 该 column 可生成结构 contact label |
+| `pwm_mask[j] == 0` | 该 column 不参与 contact/map 监督与评估 |
+
+`pwm_mask`描述的是结构可见性，不是 PWM target 是否有效。PWM target、PWM loss 和主线 PWM 评估都使用完整的 `M x 4` 矩阵。
+
+## PWM Evaluation
+
+对每个 sample，当前 MAE 定义为：
+
+```text
+MAE_sample = mean_j sum_b |PWM_target[j,b] - PWM_pred[j,b]|
+```
+
+数据集结果是 `mean_sample(MAE_sample)`。KL、IC-PCC 和 RC-aware KL 同样先按完整 PWM 计算单样本值，再对 samples 求均值；不存在跨样本 pooling columns 的逻辑。
+
 ## Boundary
 
 | 项 | 当前边界 |
@@ -46,4 +71,5 @@ PDB/mmCIF structure + motif database PWM + chain selection + split
 | 与 DeepPBS | DeepPBS 是 complex-input reference；RBE 推理时不使用 DNA 坐标 |
 | 可比主指标 | PWM metrics |
 | site 指标 | 可作为附加结果，不和 DeepPBS 直接等价 |
-| partial PWM | 已用 `pwm_mask` 和 `slot_to_dna_index=-1` 表达不可见 columns |
+| partial structure | 用 `pwm_mask` 和 `slot_to_dna_index=-1` 表达不可见 columns |
+| PWM 范围 | 主线评估完整、未裁剪 PWM；masked 范围作为独立分支实验 |
