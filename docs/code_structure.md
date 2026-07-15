@@ -14,6 +14,7 @@
 | `rbe.data.contact_labels` | `A_base_label`、`A_backbone_label`、`A_contact_label`、`site_label` |
 | `rbe.data.processed_sample` | 单个 complex + PWM 到训练样本数组 |
 | `rbe.data.source_prepare` | source manifest 批量生成 training cache、过滤、报告 |
+| `rbe.data.shared_cache` | 跨 DeepPBS folds 去重生成 shared cache，再写各 fold processed manifest |
 | `rbe.data.deeppbs_curated` | DeepPBS fold entry 和资源路径解析 |
 
 ## Evaluation Pipeline
@@ -33,6 +34,7 @@
 | 脚本 | 职责 |
 |---|---|
 | `scripts/prepare_source_manifest.py` | 参数解析并调用 `rbe.data.source_prepare` |
+| `scripts/prepare_deeppbs_shared_cache.py` | 一次生成 DeepPBS unique sample cache 和 11 个 fold manifests |
 | `scripts/download_motif_sources.py` | 按 DeepPBS motif ID 下载未裁剪公共 PWM 并生成四列 index |
 | `scripts/import_deeppbs_source_manifest.py` | 用 DeepPBS fold 和 motif index 生成 source manifest |
 | `scripts/align_deeppbs_predictions_for_rbe_eval.py` | 参数解析并调用 `rbe.eval.deeppbs_alignment` |
