@@ -1,6 +1,6 @@
 # Masked PWM Per-Sample Runbook
 
-本 runbook 用于在服务器上完成未裁剪 PWM 数据准备、训练和评估。当前 `pwm_mae` 的口径是：每个 sample 只在 `pwm_mask=1` 的结构可见 columns 上计算 MAE，再对 samples 求均值。
+本 runbook 用于在服务器上完成未裁剪 PWM 数据准备、五折训练、ensemble prediction 和评估。当前 `pwm_mae` 的口径是：每个 sample 只在 `pwm_mask=1` 的结构可见 columns 上计算 MAE，再对 samples 求均值。
 
 ## 1. 更新代码与环境
 
@@ -32,12 +32,12 @@ test -s resources/motif_sources/motif_index.tsv
 head resources/motif_sources/motif_index.tsv
 ```
 
-## 3. 生成 Fold 0 Source Manifests
+## 3. 生成五折 Source Manifests
 
 ```bash
 mkdir -p metadata/generated data/raw/structures
 
-for SPLIT in train0 valid0 id; do
+for SPLIT in train{0..4} valid{0..4} id; do
   python scripts/import_deeppbs_source_manifest.py \
     --fold-file "${SPLIT}.txt" \
     --output "metadata/generated/deeppbs_${SPLIT}_sources.tsv" \
@@ -50,7 +50,7 @@ done
 ## 4. 构建 Training Cache
 
 ```bash
-for SPLIT in train0 valid0 id; do
+for SPLIT in train{0..4} valid{0..4} id; do
   python scripts/prepare_source_manifest.py \
     --source-manifest "metadata/generated/deeppbs_${SPLIT}_sources.tsv" \
     --out-root "data/deeppbs_untrimmed/${SPLIT}" \
@@ -62,7 +62,7 @@ done
 检查成功和失败数量：
 
 ```bash
-for SPLIT in train0 valid0 id; do
+for SPLIT in train{0..4} valid{0..4} id; do
   echo "=== ${SPLIT} ==="
   wc -l "data/deeppbs_untrimmed/${SPLIT}/processed_manifest.txt"
   tail -n +2 "data/deeppbs_untrimmed/${SPLIT}/failed.tsv" | wc -l
@@ -76,7 +76,7 @@ python - <<'PY'
 from pathlib import Path
 import numpy as np
 
-for split in ("valid0", "id"):
+for split in ("valid0", "valid1", "valid2", "valid3", "valid4", "id"):
     manifest = Path(f"data/deeppbs_untrimmed/{split}/processed_manifest.txt")
     samples = [Path(line.strip()) for line in manifest.read_text().splitlines() if line.strip()]
     valid = 0
@@ -92,54 +92,90 @@ for split in ("valid0", "id"):
 PY
 ```
 
-## 5. 训练
+## 5. 训练五个模型
 
 ```bash
-mkdir -p runs/masked_pwm_per_sample_fold0
+mkdir -p runs/masked_pwm_per_sample
 
-python -m rbe.train \
-  --manifest data/deeppbs_untrimmed/train0/processed_manifest.txt \
-  --config configs/dna_v1.yaml \
-  --out-dir runs/masked_pwm_per_sample_fold0 \
-  --device cuda \
-  2>&1 | tee runs/masked_pwm_per_sample_fold0/train.log
+for FOLD in {0..4}; do
+  mkdir -p "runs/masked_pwm_per_sample/fold${FOLD}"
+  python -m rbe.train \
+    --manifest "data/deeppbs_untrimmed/train${FOLD}/processed_manifest.txt" \
+    --config configs/dna_v1.yaml \
+    --out-dir "runs/masked_pwm_per_sample/fold${FOLD}" \
+    --device cuda \
+    2>&1 | tee "runs/masked_pwm_per_sample/fold${FOLD}/train.log"
+done
 ```
 
 训练完成后应存在：
 
 ```bash
-ls -lh runs/masked_pwm_per_sample_fold0/best.pt \
-       runs/masked_pwm_per_sample_fold0/last.pt
+ls -lh runs/masked_pwm_per_sample/fold{0..4}/best.pt
 ```
 
-## 6. 评估
+## 6. 评估各折 Validation
 
 ```bash
-for SPLIT in valid0 id; do
+for FOLD in {0..4}; do
   python -m rbe.eval.evaluate_manifest \
-    --manifest "data/deeppbs_untrimmed/${SPLIT}/processed_manifest.txt" \
-    --pred-dir "runs/masked_pwm_per_sample_fold0/${SPLIT}_preds" \
-    --checkpoint runs/masked_pwm_per_sample_fold0/best.pt \
+    --manifest "data/deeppbs_untrimmed/valid${FOLD}/processed_manifest.txt" \
+    --pred-dir "runs/masked_pwm_per_sample/fold${FOLD}/valid_preds" \
+    --checkpoint "runs/masked_pwm_per_sample/fold${FOLD}/best.pt" \
     --device cuda \
     --overwrite-pred \
-    --summary-json "runs/masked_pwm_per_sample_fold0/${SPLIT}_summary.json"
+    --summary-json "runs/masked_pwm_per_sample/fold${FOLD}/valid_summary.json"
 done
+```
+
+## 7. 五模型 Ensemble ID 评估
+
+先对五个模型的 prediction arrays 求均值：
+
+```bash
+python -m rbe.eval.predict_ensemble_manifest \
+  --manifest data/deeppbs_untrimmed/id/processed_manifest.txt \
+  --pred-dir runs/masked_pwm_per_sample/id_ensemble/preds \
+  --checkpoints \
+    runs/masked_pwm_per_sample/fold0/best.pt \
+    runs/masked_pwm_per_sample/fold1/best.pt \
+    runs/masked_pwm_per_sample/fold2/best.pt \
+    runs/masked_pwm_per_sample/fold3/best.pt \
+    runs/masked_pwm_per_sample/fold4/best.pt \
+  --device cuda \
+  --overwrite-pred
+```
+
+再用 ensemble predictions 计算 masked per-sample MAE：
+
+```bash
+python -m rbe.eval.evaluate_manifest \
+  --manifest data/deeppbs_untrimmed/id/processed_manifest.txt \
+  --pred-dir runs/masked_pwm_per_sample/id_ensemble/preds \
+  --per-sample-tsv runs/masked_pwm_per_sample/id_ensemble/eval_per_sample.tsv \
+  --summary-tsv runs/masked_pwm_per_sample/id_ensemble/eval_summary.tsv \
+  --summary-json runs/masked_pwm_per_sample/id_ensemble/eval_summary.json
 ```
 
 关键输出：
 
 | 文件 | 内容 |
 |---|---|
-| `${SPLIT}_preds/eval_per_sample.tsv` | 每个 sample 的 masked `pwm_mae` 和其他指标 |
-| `${SPLIT}_preds/eval_summary.tsv` | 对 sample 指标求 mean/std，`pwm_mae.n` 应等于 sample 数 |
-| `${SPLIT}_summary.json` | 完整评估记录 |
+| `fold*/valid_preds/eval_summary.tsv` | 五个模型各自在对应 validation fold 上的结果 |
+| `id_ensemble/eval_per_sample.tsv` | ID 集合每个 sample 的 ensemble masked `pwm_mae` |
+| `id_ensemble/eval_summary.tsv` | ID benchmark 的 sample mean/std，`pwm_mae.n` 等于 sample 数 |
+| `id_ensemble/eval_summary.json` | ID benchmark 完整评估记录 |
 
 查看 MAE：
 
 ```bash
-for SPLIT in valid0 id; do
-  echo "=== ${SPLIT} ==="
+for FOLD in {0..4}; do
+  echo "=== valid${FOLD} ==="
   awk -F '\t' 'NR == 1 || $1 == "pwm_mae"' \
-    "runs/masked_pwm_per_sample_fold0/${SPLIT}_preds/eval_summary.tsv"
+    "runs/masked_pwm_per_sample/fold${FOLD}/valid_preds/eval_summary.tsv"
 done
+
+echo "=== id ensemble ==="
+awk -F '\t' 'NR == 1 || $1 == "pwm_mae"' \
+  runs/masked_pwm_per_sample/id_ensemble/eval_summary.tsv
 ```
