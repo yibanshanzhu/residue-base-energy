@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from rbe.data.dataset import RBEDataset, rbe_collate, to_device
+from rbe.data.family_prior import load_group_balanced_pwm_prior
 from rbe.eval.metrics import pwm_mae
 from rbe.eval.prediction import orient_prediction_arrays
 from rbe.losses import compute_rbe_losses
@@ -82,6 +83,8 @@ def train(args: argparse.Namespace) -> None:
         num_workers=0,
     )
     model = build_model_from_config(config).to(device)
+    if model.use_pwm_prior:
+        model.set_pwm_prior(load_group_balanced_pwm_prior(dataset.paths))
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=float(config["optim"]["lr"]),
@@ -102,6 +105,29 @@ def train(args: argparse.Namespace) -> None:
         "loss_noncontact",
     ]
     print("\t".join(["epoch"] + metric_keys + ["valid_pwm_mae"]))
+    if model.use_pwm_prior:
+        best_valid_mae = _validation_pwm_mae(model, valid_loader, device)
+        initial_metrics = {
+            **{key: float("nan") for key in metric_keys},
+            "valid_pwm_mae": best_valid_mae,
+        }
+        print(
+            "\t".join(
+                ["0"]
+                + ["nan" for _ in metric_keys]
+                + [f"{best_valid_mae:.6f}"]
+            )
+        )
+        torch.save(
+            {
+                "model_state": model.state_dict(),
+                "config": config,
+                "epoch": 0,
+                "metrics": initial_metrics,
+                "pwm_prior": model.pwm_prior().detach().cpu(),
+            },
+            out_dir / "best.pt",
+        )
     for epoch in range(1, int(config["optim"]["epochs"]) + 1):
         model.train()
         totals = {key: 0.0 for key in metric_keys}
@@ -139,6 +165,8 @@ def train(args: argparse.Namespace) -> None:
             "epoch": epoch,
             "metrics": metrics,
         }
+        if model.use_pwm_prior:
+            ckpt["pwm_prior"] = model.pwm_prior().detach().cpu()
         torch.save(ckpt, out_dir / "last.pt")
         if metrics["valid_pwm_mae"] < best_valid_mae:
             best_valid_mae = metrics["valid_pwm_mae"]

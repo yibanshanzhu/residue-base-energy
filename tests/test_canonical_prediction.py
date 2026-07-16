@@ -16,6 +16,8 @@ def test_prediction_canonicalization_transforms_every_slot_axis():
     arrays = {
         "pwm": pwm,
         "pwm_logits": np.arange(8, dtype=np.float32).reshape(2, 4),
+        "pwm_prior_logits": np.arange(8, dtype=np.float32).reshape(2, 4),
+        "pwm_residual_logits": np.arange(8, dtype=np.float32).reshape(2, 4),
         "A_base": np.asarray([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32),
         "E": np.arange(16, dtype=np.float32).reshape(2, 2, 4),
         "site_prob": np.asarray([0.2, 0.8], dtype=np.float32),
@@ -24,6 +26,12 @@ def test_prediction_canonicalization_transforms_every_slot_axis():
     result = canonicalize_prediction_arrays(arrays)
 
     np.testing.assert_array_equal(result["pwm_logits"], arrays["pwm_logits"][::-1, ::-1])
+    np.testing.assert_array_equal(
+        result["pwm_prior_logits"], arrays["pwm_prior_logits"][::-1, ::-1]
+    )
+    np.testing.assert_array_equal(
+        result["pwm_residual_logits"], arrays["pwm_residual_logits"][::-1, ::-1]
+    )
     np.testing.assert_array_equal(result["A_base"], arrays["A_base"][:, ::-1])
     np.testing.assert_array_equal(result["E"], arrays["E"][:, ::-1, ::-1])
     np.testing.assert_array_equal(result["site_prob"], arrays["site_prob"])

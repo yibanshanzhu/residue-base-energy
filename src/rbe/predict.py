@@ -17,8 +17,7 @@ from rbe.data.pdb import (
     select_dna_residues,
     select_protein_residues,
 )
-from rbe.eval.prediction import orient_prediction_arrays
-from rbe.models import build_model_from_config
+from rbe.eval.prediction import load_model, orient_prediction_arrays
 from rbe.utils import resolve_device
 
 
@@ -48,10 +47,7 @@ def predict(args: argparse.Namespace) -> None:
             f"esm2_repr must have shape {(len(protein), 1280)}, got {esm2_repr.shape}."
         )
 
-    checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=False)
-    model = build_model_from_config(checkpoint["config"]).to(device)
-    model.load_state_dict(checkpoint["model_state"])
-    model.eval()
+    model = load_model(args.checkpoint, device)
 
     aa_idx = np.array(
         ["ACDEFGHIKLMNPQRSTVWY".index(aa) for aa in residue_aa], dtype=np.int64
@@ -80,6 +76,8 @@ def predict(args: argparse.Namespace) -> None:
             if key in (
                 "pwm",
                 "pwm_logits",
+                "pwm_prior_logits",
+                "pwm_residual_logits",
                 "A",
                 "A_base",
                 "A_base_logits",

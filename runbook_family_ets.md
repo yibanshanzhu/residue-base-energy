@@ -15,6 +15,10 @@ residue-base supervision/配对是否真正贡献了预测能力。
 | checkpoint | 只按独立 validation UniProt 的 PWM MAE 选择 `best.pt` |
 | 汇总 | 先对同一 UniProt 的结构求均值，再对 12 个 UniProt 等权求均值 |
 
+模型以当前 fold 的训练 UniProt 等权 PWM 均值作为固定 logits prior，再由
+residue-base energy 预测 residual logits。prior 不读取 validation/test；energy head 从
+零残差开始，epoch 0 的纯 prior 也参与 `best.pt` 选择。
+
 每个 test UniProt 只能使用对应的 LOPO 模型。**不能 ensemble 12 个模型**，因为其他
 fold 的模型见过当前 test UniProt，会造成训练测试泄漏。
 
@@ -101,7 +105,7 @@ done
 
 ## 6. 生成非神经网络 Baselines
 
-`family_mean` 先在每个训练 UniProt 内求平均，再对训练 UniProt 等权平均；
+`family_mean` 与模型的 epoch 0 prior 完全相同：先在每个训练 UniProt 内求平均，再对训练 UniProt 等权平均；
 `nearest_esm` 只从当前 fold 的训练组中选择 pooled-ESM2 cosine 最近邻。
 
 ```bash
@@ -112,8 +116,8 @@ python scripts/predict_family_baselines.py \
 
 ## 7. 生成机制消融
 
-`uniform_gate` 保持每个 motif slot 的 gate 总量，但抹掉 residue 定位；
-`shuffled_energy` 保持 gate 和 energy 的边际分布，但打乱 residue 对应关系。
+`uniform_gate` 保留 prior 和每个 motif slot 的 gate 总量，但抹掉 residue 定位；
+`shuffled_energy` 保留 prior、gate 和 energy 的边际分布，但打乱 residue 对应关系。
 
 ```bash
 python scripts/ablate_family_mechanism.py \

@@ -32,10 +32,15 @@ def write_mechanism_ablations(
                 f"{sample_path.stem}: E shape {E.shape} does not match A {A.shape}."
             )
         orientation = str(prediction["pwm_orientation"])
+        prior_logits = np.asarray(prediction["pwm_prior_logits"], dtype=np.float32)
+        if prior_logits.shape != (A.shape[1], 4):
+            raise ValueError(
+                f"{sample_path.stem}: invalid PWM prior shape {prior_logits.shape}."
+            )
 
         gate_mass = A.sum(axis=0, keepdims=True)
         uniform_gate = np.broadcast_to(gate_mass / A.shape[0], A.shape)
-        uniform_logits = np.sum(uniform_gate[..., None] * E, axis=0)
+        uniform_logits = prior_logits + np.sum(uniform_gate[..., None] * E, axis=0)
         _write_pwm_prediction(
             pred_path_for_sample(sample_path, output_dirs["uniform_gate"], suffix),
             uniform_logits,
@@ -46,7 +51,9 @@ def write_mechanism_ablations(
             hashlib.sha256(sample_path.stem.encode()).digest()[:8], "little"
         )
         permutation = np.random.default_rng(seed).permutation(A.shape[0])
-        shuffled_logits = np.sum(A[..., None] * E[permutation], axis=0)
+        shuffled_logits = prior_logits + np.sum(
+            A[..., None] * E[permutation], axis=0
+        )
         _write_pwm_prediction(
             pred_path_for_sample(sample_path, output_dirs["shuffled_energy"], suffix),
             shuffled_logits,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import torch
 
+from rbe.eval.prediction import load_model
 from rbe.losses import compute_rbe_losses
 from rbe.models.model import ResidueBaseEnergyModel
 
@@ -47,6 +48,8 @@ def test_forward_and_loss_shapes():
     assert out["A_backbone"].shape == (n_res, motif_len)
     assert out["A_contact"].shape == (n_res, motif_len)
     assert out["E"].shape == (n_res, motif_len, 4)
+    assert out["pwm_prior_logits"].shape == (motif_len, 4)
+    assert out["pwm_residual_logits"].shape == (motif_len, 4)
     assert out["pwm"].shape == (motif_len, 4)
     assert out["site_prob"].shape == (n_res,)
     losses = compute_rbe_losses(
@@ -71,6 +74,7 @@ def test_forward_and_loss_shapes():
 def test_A_base_mask_excludes_unknown_positions_from_base_losses():
     outputs = {
         "pwm_logits": torch.zeros(2, 4),
+        "pwm_prior_logits": torch.zeros(2, 4),
         "A_base": torch.full((2, 2), 0.5),
         "A_base_logits": torch.zeros(2, 2),
         "A_backbone_logits": torch.zeros(2, 2),
@@ -110,6 +114,7 @@ def test_A_base_mask_excludes_unknown_positions_from_base_losses():
 def test_pwm_mask_excludes_unobserved_columns_from_structure_losses():
     outputs = {
         "pwm_logits": torch.zeros(2, 4),
+        "pwm_prior_logits": torch.zeros(2, 4),
         "A_base": torch.full((2, 2), 0.5),
         "A_base_logits": torch.zeros(2, 2),
         "A_backbone_logits": torch.zeros(2, 2),
@@ -144,3 +149,65 @@ def test_pwm_mask_excludes_unobserved_columns_from_structure_losses():
         base_losses["loss_A_backbone"], changed_losses["loss_A_backbone"]
     )
     assert torch.allclose(base_losses["loss_sparse"], torch.tensor(0.2))
+
+
+def test_family_model_starts_at_training_group_pwm_prior():
+    n_res, motif_len = 3, 2
+    model = ResidueBaseEnergyModel(
+        esm_dim=4,
+        hidden_dim=8,
+        num_egnn_layers=1,
+        edge_attr_dim=3,
+        pair_hidden_dim=8,
+        max_motif_len=2,
+        use_pwm_prior=True,
+    )
+    prior = torch.tensor(
+        [[0.7, 0.1, 0.1, 0.1], [0.1, 0.2, 0.3, 0.4]],
+        dtype=torch.float32,
+    )
+    model.set_pwm_prior(prior)
+    output = model(
+        esm2_repr=torch.randn(n_res, 4),
+        aa_idx=torch.arange(n_res),
+        residue_xyz=torch.randn(n_res, 3),
+        edge_index=torch.tensor([[0, 1, 2], [1, 2, 0]]),
+        edge_attr=torch.randn(3, 3),
+        motif_len=motif_len,
+    )
+
+    torch.testing.assert_close(output["pwm"], prior)
+    torch.testing.assert_close(
+        output["pwm_residual_logits"], torch.zeros_like(prior)
+    )
+
+
+def test_family_checkpoint_restores_training_group_pwm_prior(tmp_path):
+    model_config = {
+        "esm_dim": 4,
+        "hidden_dim": 8,
+        "num_egnn_layers": 1,
+        "edge_attr_dim": 3,
+        "pair_hidden_dim": 8,
+        "max_motif_len": 2,
+        "use_pwm_prior": True,
+    }
+    model = ResidueBaseEnergyModel(**model_config)
+    prior = torch.tensor(
+        [[0.6, 0.2, 0.1, 0.1], [0.1, 0.1, 0.3, 0.5]],
+        dtype=torch.float32,
+    )
+    model.set_pwm_prior(prior)
+    checkpoint = tmp_path / "family.pt"
+    torch.save(
+        {
+            "config": {"model": model_config},
+            "model_state": model.state_dict(),
+            "pwm_prior": prior,
+        },
+        checkpoint,
+    )
+
+    restored = load_model(checkpoint, torch.device("cpu"))
+
+    torch.testing.assert_close(restored.pwm_prior(), prior)

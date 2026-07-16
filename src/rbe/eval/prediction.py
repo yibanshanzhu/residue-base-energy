@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 PREDICTION_KEYS = (
     "pwm",
     "pwm_logits",
+    "pwm_prior_logits",
+    "pwm_residual_logits",
     "A",
     "A_base",
     "A_base_logits",
@@ -34,6 +36,10 @@ def load_model(checkpoint_path: str | Path, device: "torch.device") -> "torch.nn
 
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     model = build_model_from_config(checkpoint["config"]).to(device)
+    if model.use_pwm_prior:
+        if "pwm_prior" not in checkpoint:
+            raise ValueError(f"{checkpoint_path}: checkpoint is missing pwm_prior.")
+        model.set_pwm_prior(checkpoint["pwm_prior"])
     model.load_state_dict(checkpoint["model_state"])
     model.eval()
     return model
@@ -99,7 +105,11 @@ def orient_prediction_arrays(
     if orientation == "canonical":
         result["pwm"], reverse = canonicalize_pwm(result["pwm"])
     if reverse:
-        for key in ("pwm_logits",):
+        for key in (
+            "pwm_logits",
+            "pwm_prior_logits",
+            "pwm_residual_logits",
+        ):
             if key in result:
                 result[key] = result[key][::-1, ::-1].copy()
         for key in (

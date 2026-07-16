@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
+from rbe.data.family_prior import group_balanced_pwm_prior
 from rbe.eval.io import load_npz, pred_path_for_sample, read_manifest
 
 
@@ -17,7 +18,7 @@ def predict_family_baselines(
     train = [(path, load_npz(path)) for path in train_paths]
     orientation, pwm_shape = _validate_family_contract([data for _, data in train])
 
-    mean_pwm = _group_balanced_mean_pwm([data for _, data in train])
+    mean_pwm = group_balanced_pwm_prior([data for _, data in train])
     train_embeddings = np.stack([_pooled_esm(data) for _, data in train])
     output_dirs = {
         "nearest_esm": Path(out_root) / "nearest_esm" / "preds",
@@ -66,14 +67,6 @@ def _pooled_esm(data: dict[str, np.ndarray]) -> np.ndarray:
     if norm == 0.0:
         raise ValueError("Encountered a zero pooled ESM embedding.")
     return embedding / norm
-
-
-def _group_balanced_mean_pwm(data: list[dict[str, np.ndarray]]) -> np.ndarray:
-    by_group: dict[str, list[np.ndarray]] = {}
-    for sample in data:
-        by_group.setdefault(str(sample["protein_group"]), []).append(sample["pwm_target"])
-    group_pwms = [np.mean(values, axis=0) for values in by_group.values()]
-    return np.mean(group_pwms, axis=0).astype(np.float32)
 
 
 def _validate_family_contract(

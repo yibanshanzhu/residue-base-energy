@@ -15,6 +15,7 @@ model:
   pair_hidden_dim: 128
   max_motif_len: 8
   coord_update_scale: 0.1
+  use_pwm_prior: true
 
 loss:
   lambda_pwm_teacher: 0.0

@@ -41,7 +41,9 @@ def compute_rbe_losses(outputs: dict, sample: dict, weights: dict) -> dict:
         teacher_gate_with_unknown,
         outputs["A_base"].detach(),
     )
-    teacher_pwm_logits = torch.sum(teacher_gate.unsqueeze(-1) * outputs["E"], dim=0)
+    teacher_pwm_logits = outputs["pwm_prior_logits"] + torch.sum(
+        teacher_gate.unsqueeze(-1) * outputs["E"], dim=0
+    )
     loss_pwm_teacher = F.kl_div(
         F.log_softmax(teacher_pwm_logits, dim=-1),
         pwm_target,
