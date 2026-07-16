@@ -6,6 +6,8 @@ import torch
 from torch.utils.data import DataLoader
 
 from rbe.data.dataset import RBEDataset, rbe_collate, to_device
+from rbe.data.pwm import canonicalize_pwm
+from rbe.eval.metrics import pwm_mae
 from rbe.losses import compute_rbe_losses
 from rbe.models import build_model_from_config
 from rbe.utils import ensure_dir, load_config, resolve_device, set_seed
@@ -23,6 +25,30 @@ def _as_float_dict(losses: dict) -> dict:
     return {key: float(value.detach().cpu()) for key, value in losses.items()}
 
 
+def _validation_pwm_mae(
+    model: torch.nn.Module,
+    loader: DataLoader,
+    device: torch.device,
+) -> float:
+    values = []
+    model.eval()
+    with torch.no_grad():
+        for batch in loader:
+            sample = to_device(batch[0], device)
+            motif_len = int(sample["pwm_target"].shape[0])
+            outputs = model(
+                esm2_repr=sample["esm2_repr"],
+                aa_idx=sample["aa_idx"],
+                residue_xyz=sample["residue_xyz"],
+                edge_index=sample["edge_index"],
+                edge_attr=sample["edge_attr"],
+                motif_len=motif_len,
+            )
+            pred_pwm, _ = canonicalize_pwm(outputs["pwm"].cpu().numpy())
+            values.append(pwm_mae(sample["pwm_target"].cpu().numpy(), pred_pwm))
+    return float(sum(values) / len(values))
+
+
 def train(args: argparse.Namespace) -> None:
     config = load_config(args.config)
     if args.epochs is not None:
@@ -37,10 +63,18 @@ def train(args: argparse.Namespace) -> None:
 
     device = resolve_device(config.get("device", "auto"))
     dataset = _build_dataset(args)
+    valid_dataset = RBEDataset.from_manifest(args.valid_manifest)
     loader = DataLoader(
         dataset,
         batch_size=1,
         shuffle=True,
+        collate_fn=rbe_collate,
+        num_workers=0,
+    )
+    valid_loader = DataLoader(
+        valid_dataset,
+        batch_size=1,
+        shuffle=False,
         collate_fn=rbe_collate,
         num_workers=0,
     )
@@ -51,7 +85,7 @@ def train(args: argparse.Namespace) -> None:
         weight_decay=float(config["optim"]["weight_decay"]),
     )
     out_dir = ensure_dir(args.out_dir)
-    best_loss = float("inf")
+    best_valid_mae = float("inf")
 
     metric_keys = [
         "loss",
@@ -64,7 +98,7 @@ def train(args: argparse.Namespace) -> None:
         "loss_sparse",
         "loss_noncontact",
     ]
-    print("\t".join(["epoch"] + metric_keys))
+    print("\t".join(["epoch"] + metric_keys + ["valid_pwm_mae"]))
     for epoch in range(1, int(config["optim"]["epochs"]) + 1):
         model.train()
         totals = {key: 0.0 for key in metric_keys}
@@ -88,7 +122,14 @@ def train(args: argparse.Namespace) -> None:
                 totals[key] += value
 
         metrics = {key: value / len(dataset) for key, value in totals.items()}
-        print("\t".join([str(epoch)] + [f"{metrics[key]:.6f}" for key in metric_keys]))
+        metrics["valid_pwm_mae"] = _validation_pwm_mae(model, valid_loader, device)
+        print(
+            "\t".join(
+                [str(epoch)]
+                + [f"{metrics[key]:.6f}" for key in metric_keys]
+                + [f"{metrics['valid_pwm_mae']:.6f}"]
+            )
+        )
         ckpt = {
             "model_state": model.state_dict(),
             "config": config,
@@ -96,8 +137,8 @@ def train(args: argparse.Namespace) -> None:
             "metrics": metrics,
         }
         torch.save(ckpt, out_dir / "last.pt")
-        if metrics["loss"] < best_loss:
-            best_loss = metrics["loss"]
+        if metrics["valid_pwm_mae"] < best_valid_mae:
+            best_valid_mae = metrics["valid_pwm_mae"]
             torch.save(ckpt, out_dir / "best.pt")
 
 
@@ -105,6 +146,7 @@ def build_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Train Residue-Base Energy V1.")
     parser.add_argument("--data-dir", default=None)
     parser.add_argument("--manifest", default=None)
+    parser.add_argument("--valid-manifest", required=True)
     parser.add_argument("--config", default="configs/dna_v1.yaml")
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--epochs", type=int, default=None)

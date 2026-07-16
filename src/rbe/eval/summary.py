@@ -90,7 +90,6 @@ def _preferred_metric_order() -> list[str]:
         "pwm_mae",
         "pwm_kl",
         "pwm_ic_pcc",
-        "pwm_rc_aware_kl",
         "A_base_ap",
         "A_base_top_l_precision",
         "A_backbone_ap",

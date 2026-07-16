@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
+from rbe.data.pwm import canonicalize_pwm
 from rbe.eval.io import read_manifest
 
 
@@ -46,7 +47,12 @@ def align_deeppbs_predictions(
             failure_rows.append(f"{sample.stem}\t{exc}")
             continue
 
-        np.savez_compressed(destination, P=pwm)
+        pwm, canonical_rc = canonicalize_pwm(pwm)
+        np.savez_compressed(
+            destination,
+            P=pwm,
+            canonical_reverse_complement=np.asarray(canonical_rc, dtype=bool),
+        )
         aligned_samples.append(sample.resolve())
         mode_rows.append(f"{sample.stem}\t{mode}\t{sequence}")
 

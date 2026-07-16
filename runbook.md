@@ -1,35 +1,31 @@
-# Masked PWM Per-Sample Runbook
+# Canonical PWM Orientation Runbook
 
-本 runbook 用于在服务器上完成未裁剪 PWM 数据准备、五折训练、ensemble prediction 和评估。当前 `pwm_mae` 的口径是：每个 sample 只在 `pwm_mask=1` 的结构可见 columns 上计算 MAE，再对 samples 求均值。
+本 runbook 用于在服务器上完成未裁剪 PWM 数据准备、canonical orientation 五折训练、五模型 ensemble 和评估。
+
+评估主指标为：每个 sample 在完整 PWM 上计算 position-wise L1 mean，再对 samples 求均值。
 
 ## 1. 更新代码与环境
 
 ```bash
 cd /path/to/residue-base-energy
 git fetch origin
-git switch masked-pwm-per-sample
+git switch canonical-pwm-orientation
 git pull --ff-only
 
-conda env create -f environment.gpu.yml
 conda activate rbe_gpu
 pip install -e .
 ```
 
-环境已经创建时，只需执行 `conda activate rbe_gpu` 和 `pip install -e .`。
-
 ## 2. 下载未裁剪 PWM
+
+已经下载完成时跳过本节。
 
 ```bash
 python scripts/download_motif_sources.py \
   --out-root resources/motif_sources \
   --motif-index resources/motif_sources/motif_index.tsv
-```
 
-检查结果：
-
-```bash
 test -s resources/motif_sources/motif_index.tsv
-head resources/motif_sources/motif_index.tsv
 ```
 
 ## 3. 生成五折 Source Manifests
@@ -47,69 +43,70 @@ for SPLIT in train{0..4} valid{0..4} id; do
 done
 ```
 
-## 4. 构建 Training Cache
+## 4. 构建 Canonical Cache
+
+使用独立目录，不能复用旧的 untrimmed/masked cache。
 
 ```bash
 python scripts/prepare_deeppbs_shared_cache.py \
   --source-root metadata/generated \
-  --out-root data/deeppbs_untrimmed \
+  --out-root data/deeppbs_canonical \
   --download-structures \
   --device cuda
 ```
 
-该命令按 `sample_id` 合并 11 个 source manifests。结构解析、ESM2 embedding 和 labels 对每个 unique sample 只计算一次；fold membership 单独写入 `data/deeppbs_untrimmed/manifests/*.txt`。
-
-检查成功和失败数量：
-
-```bash
-wc -l data/deeppbs_untrimmed/processed_manifest.txt
-tail -n +2 data/deeppbs_untrimmed/failed.tsv | wc -l
-wc -l data/deeppbs_untrimmed/manifests/*.txt
-```
-
-验证所有评估样本都有至少一个有效 PWM column：
+验证缓存契约：
 
 ```bash
 python - <<'PY'
 from pathlib import Path
 import numpy as np
+from rbe.data.pwm import canonicalize_pwm
 
-for split in ("valid0", "valid1", "valid2", "valid3", "valid4", "id"):
-    manifest = Path(f"data/deeppbs_untrimmed/manifests/{split}.txt")
-    samples = [Path(line.strip()) for line in manifest.read_text().splitlines() if line.strip()]
-    valid = 0
-    total = 0
-    for sample in samples:
-        with np.load(sample, allow_pickle=False) as data:
-            mask = data["pwm_mask"]
-            assert mask.shape == (data["pwm_target"].shape[0],), sample
-            assert np.any(mask == 1), sample
-            valid += int((mask == 1).sum())
-            total += mask.size
-    print(split, f"samples={len(samples)}", f"valid_columns={valid}/{total}")
+root = Path("data/deeppbs_canonical")
+samples = [
+    Path(line.strip())
+    for line in (root / "processed_manifest.txt").read_text().splitlines()
+    if line.strip()
+]
+flipped = 0
+for sample in samples:
+    with np.load(sample, allow_pickle=False) as data:
+        pwm = data["pwm_target"]
+        assert "canonical_reverse_complement" in data.files, sample
+        assert not canonicalize_pwm(pwm)[1], sample
+        m = pwm.shape[0]
+        assert data["pwm_mask"].shape == (m,), sample
+        assert data["slot_to_dna_index"].shape == (m,), sample
+        for key in ("A_base_label", "A_base_mask", "A_backbone_label", "A_contact_label"):
+            assert data[key].shape[1] == m, (sample, key)
+        flipped += int(data["canonical_reverse_complement"])
+print(f"samples={len(samples)} canonical_rc_applied={flipped}")
 PY
+
+wc -l data/deeppbs_canonical/manifests/*.txt
+tail -n +2 data/deeppbs_canonical/failed.tsv | wc -l
 ```
 
 ## 5. 训练五个模型
 
+`best.pt` 按对应 validation fold 的 canonical full per-sample PWM MAE 选择。
+
 ```bash
-mkdir -p runs/masked_pwm_per_sample
+mkdir -p runs/canonical_pwm
 
 for FOLD in {0..4}; do
-  mkdir -p "runs/masked_pwm_per_sample/fold${FOLD}"
+  mkdir -p "runs/canonical_pwm/fold${FOLD}"
   python -m rbe.train \
-    --manifest "data/deeppbs_untrimmed/manifests/train${FOLD}.txt" \
+    --manifest "data/deeppbs_canonical/manifests/train${FOLD}.txt" \
+    --valid-manifest "data/deeppbs_canonical/manifests/valid${FOLD}.txt" \
     --config configs/dna_v1.yaml \
-    --out-dir "runs/masked_pwm_per_sample/fold${FOLD}" \
+    --out-dir "runs/canonical_pwm/fold${FOLD}" \
     --device cuda \
-    2>&1 | tee "runs/masked_pwm_per_sample/fold${FOLD}/train.log"
+    2>&1 | tee "runs/canonical_pwm/fold${FOLD}/train.log"
 done
-```
 
-训练完成后应存在：
-
-```bash
-ls -lh runs/masked_pwm_per_sample/fold{0..4}/best.pt
+ls -lh runs/canonical_pwm/fold{0..4}/best.pt
 ```
 
 ## 6. 评估各折 Validation
@@ -117,63 +114,43 @@ ls -lh runs/masked_pwm_per_sample/fold{0..4}/best.pt
 ```bash
 for FOLD in {0..4}; do
   python -m rbe.eval.evaluate_manifest \
-    --manifest "data/deeppbs_untrimmed/manifests/valid${FOLD}.txt" \
-    --pred-dir "runs/masked_pwm_per_sample/fold${FOLD}/valid_preds" \
-    --checkpoint "runs/masked_pwm_per_sample/fold${FOLD}/best.pt" \
+    --manifest "data/deeppbs_canonical/manifests/valid${FOLD}.txt" \
+    --pred-dir "runs/canonical_pwm/fold${FOLD}/valid_preds" \
+    --checkpoint "runs/canonical_pwm/fold${FOLD}/best.pt" \
     --device cuda \
     --overwrite-pred \
-    --summary-json "runs/masked_pwm_per_sample/fold${FOLD}/valid_summary.json"
+    --summary-json "runs/canonical_pwm/fold${FOLD}/valid_summary.json"
 done
 ```
 
 ## 7. 五模型 Ensemble ID 评估
 
-先对五个模型的 prediction arrays 求均值：
-
 ```bash
 python -m rbe.eval.predict_ensemble_manifest \
-  --manifest data/deeppbs_untrimmed/manifests/id.txt \
-  --pred-dir runs/masked_pwm_per_sample/id_ensemble/preds \
+  --manifest data/deeppbs_canonical/manifests/id.txt \
+  --pred-dir runs/canonical_pwm/id_ensemble/preds \
   --checkpoints \
-    runs/masked_pwm_per_sample/fold0/best.pt \
-    runs/masked_pwm_per_sample/fold1/best.pt \
-    runs/masked_pwm_per_sample/fold2/best.pt \
-    runs/masked_pwm_per_sample/fold3/best.pt \
-    runs/masked_pwm_per_sample/fold4/best.pt \
+    runs/canonical_pwm/fold0/best.pt \
+    runs/canonical_pwm/fold1/best.pt \
+    runs/canonical_pwm/fold2/best.pt \
+    runs/canonical_pwm/fold3/best.pt \
+    runs/canonical_pwm/fold4/best.pt \
   --device cuda \
   --overwrite-pred
-```
 
-再用 ensemble predictions 计算 masked per-sample MAE：
-
-```bash
 python -m rbe.eval.evaluate_manifest \
-  --manifest data/deeppbs_untrimmed/manifests/id.txt \
-  --pred-dir runs/masked_pwm_per_sample/id_ensemble/preds \
-  --per-sample-tsv runs/masked_pwm_per_sample/id_ensemble/eval_per_sample.tsv \
-  --summary-tsv runs/masked_pwm_per_sample/id_ensemble/eval_summary.tsv \
-  --summary-json runs/masked_pwm_per_sample/id_ensemble/eval_summary.json
+  --manifest data/deeppbs_canonical/manifests/id.txt \
+  --pred-dir runs/canonical_pwm/id_ensemble/preds \
+  --per-sample-tsv runs/canonical_pwm/id_ensemble/eval_per_sample.tsv \
+  --summary-tsv runs/canonical_pwm/id_ensemble/eval_summary.tsv \
+  --summary-json runs/canonical_pwm/id_ensemble/eval_summary.json
 ```
 
-关键输出：
-
-| 文件 | 内容 |
-|---|---|
-| `fold*/valid_preds/eval_summary.tsv` | 五个模型各自在对应 validation fold 上的结果 |
-| `id_ensemble/eval_per_sample.tsv` | ID 集合每个 sample 的 ensemble masked `pwm_mae` |
-| `id_ensemble/eval_summary.tsv` | ID benchmark 的 sample mean/std，`pwm_mae.n` 等于 sample 数 |
-| `id_ensemble/eval_summary.json` | ID benchmark 完整评估记录 |
-
-查看 MAE：
+查看主指标：
 
 ```bash
-for FOLD in {0..4}; do
-  echo "=== valid${FOLD} ==="
-  awk -F '\t' 'NR == 1 || $1 == "pwm_mae"' \
-    "runs/masked_pwm_per_sample/fold${FOLD}/valid_preds/eval_summary.tsv"
-done
-
-echo "=== id ensemble ==="
 awk -F '\t' 'NR == 1 || $1 == "pwm_mae"' \
-  runs/masked_pwm_per_sample/id_ensemble/eval_summary.tsv
+  runs/canonical_pwm/id_ensemble/eval_summary.tsv
 ```
+
+`pwm_mae.n` 必须等于 ID sample 数。`pwm_mask` 不参与 PWM MAE，只用于结构 contact/map 的监督与评估。

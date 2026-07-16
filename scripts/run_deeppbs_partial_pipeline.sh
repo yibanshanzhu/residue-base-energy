@@ -9,8 +9,8 @@ export PYTHONPATH="$REPO_ROOT/src:${PYTHONPATH:-}"
 DEVICE="${DEVICE:-cuda}"
 CONFIG="${CONFIG:-configs/dna_v1_contact.yaml}"
 SOURCE_ROOT="${SOURCE_ROOT:-metadata/generated}"
-DATA_ROOT="${DATA_ROOT:-data/deeppbs_untrimmed}"
-RUN_ROOT="${RUN_ROOT:-runs/deeppbs_partial}"
+DATA_ROOT="${DATA_ROOT:-data/deeppbs_canonical}"
+RUN_ROOT="${RUN_ROOT:-runs/canonical_pwm}"
 
 python scripts/prepare_deeppbs_shared_cache.py \
   --source-root "$SOURCE_ROOT" \
@@ -26,6 +26,7 @@ fi
 for fold in 0 1 2 3 4; do
   python -m rbe.train \
     --manifest "${DATA_ROOT}/manifests/train${fold}.txt" \
+    --valid-manifest "${DATA_ROOT}/manifests/valid${fold}.txt" \
     --config "$CONFIG" \
     --out-dir "${RUN_ROOT}/fold${fold}" \
     --device "$DEVICE" \

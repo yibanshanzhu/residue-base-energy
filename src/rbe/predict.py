@@ -17,6 +17,7 @@ from rbe.data.pdb import (
     select_dna_residues,
     select_protein_residues,
 )
+from rbe.eval.prediction import canonicalize_prediction_arrays
 from rbe.models import build_model_from_config
 from rbe.utils import resolve_device
 
@@ -67,22 +68,32 @@ def predict(args: argparse.Namespace) -> None:
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(
-        output,
-        residue_ids=residue_ids,
-        residue_aa=residue_aa,
-        residue_xyz=residue_xyz,
-        residue_edges=edge_index,
-        edge_attr=edge_attr,
-        pwm=outputs["pwm"].cpu().numpy(),
-        pwm_logits=outputs["pwm_logits"].cpu().numpy(),
-        A=outputs["A"].cpu().numpy(),
-        A_base=outputs["A_base"].cpu().numpy(),
-        A_backbone=outputs["A_backbone"].cpu().numpy(),
-        A_contact=outputs["A_contact"].cpu().numpy(),
-        E=outputs["E"].cpu().numpy(),
-        site_prob=outputs["site_prob"].cpu().numpy(),
-    )
+    arrays = {
+        "residue_ids": residue_ids,
+        "residue_aa": residue_aa,
+        "residue_xyz": residue_xyz,
+        "residue_edges": edge_index,
+        "edge_attr": edge_attr,
+        **{
+            key: value.cpu().numpy()
+            for key, value in outputs.items()
+            if key in (
+                "pwm",
+                "pwm_logits",
+                "A",
+                "A_base",
+                "A_base_logits",
+                "A_backbone",
+                "A_backbone_logits",
+                "A_contact",
+                "A_contact_logits",
+                "E",
+                "site_prob",
+                "site_score",
+            )
+        },
+    }
+    np.savez_compressed(output, **canonicalize_prediction_arrays(arrays))
     print(
         f"wrote {output} N={len(protein)} M={int(args.motif_length)} "
         f"E_edges={edge_index.shape[1]}"

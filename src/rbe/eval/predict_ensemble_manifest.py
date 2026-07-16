@@ -10,7 +10,9 @@ from rbe.data.dataset import RBEDataset, to_device
 from rbe.eval.io import pred_path_for_sample, read_manifest
 from rbe.eval.prediction import (
     PREDICTION_KEYS,
+    canonicalize_prediction_arrays,
     load_model,
+    prediction_arrays,
     run_model_on_sample,
     sample_metadata_arrays,
 )
@@ -29,10 +31,11 @@ def predict_sample_ensemble(
     with torch.no_grad():
         for model in models:
             outputs = run_model_on_sample(sample, model)
+            model_arrays = prediction_arrays(sample, outputs)
             for key in PREDICTION_KEYS:
-                if key not in outputs:
+                if key not in model_arrays:
                     continue
-                value = outputs[key].detach().cpu().numpy()
+                value = model_arrays[key]
                 sums[key] = value if key not in sums else sums[key] + value
 
     arrays = {
@@ -40,6 +43,7 @@ def predict_sample_ensemble(
         for key, value in sums.items()
     }
     arrays.update(sample_metadata_arrays(sample))
+    arrays = canonicalize_prediction_arrays(arrays)
 
     output = Path(pred_path)
     output.parent.mkdir(parents=True, exist_ok=True)

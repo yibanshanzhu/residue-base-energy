@@ -29,6 +29,7 @@ def _write_npz_pair(tmp_path, name: str):
         A_backbone_label=A_backbone,
         A_contact_label=A_contact,
         site_label=site,
+        canonical_reverse_complement=np.asarray(False),
     )
     np.savez_compressed(
         pred,
@@ -37,6 +38,7 @@ def _write_npz_pair(tmp_path, name: str):
         A_backbone=A_backbone,
         A_contact=A_contact,
         site_prob=site,
+        canonical_reverse_complement=np.asarray(False),
     )
     return target, pred
 
@@ -57,14 +59,16 @@ def test_evaluate_pair_and_summary(tmp_path):
     assert by_metric["site_f1"]["mean"] == 1.0
 
 
-def test_evaluate_pair_requires_pwm_mask(tmp_path):
+def test_evaluate_pair_requires_canonical_metadata(tmp_path):
     target = tmp_path / "sample.npz"
     pred = tmp_path / "sample.pred.npz"
     pwm = np.asarray([[0.25, 0.25, 0.25, 0.25]], dtype=np.float32)
     np.savez_compressed(target, pwm_target=pwm)
-    np.savez_compressed(pred, pwm=pwm)
+    np.savez_compressed(
+        pred, pwm=pwm, canonical_reverse_complement=np.asarray(False)
+    )
 
-    with np.testing.assert_raises_regex(ValueError, "missing pwm_mask"):
+    with np.testing.assert_raises_regex(ValueError, "missing canonical"):
         evaluate_pair(target, pred)
 
 
@@ -79,7 +83,7 @@ def test_best_threshold_metrics_are_global_diagnostics():
     assert metrics["best_f1_threshold_diagnostic"] < 0.5
 
 
-def test_masked_pwm_mae_summary_averages_per_sample_values(tmp_path):
+def test_full_pwm_mae_summary_averages_per_sample_values(tmp_path):
     sample1 = tmp_path / "sample1.npz"
     pred1 = tmp_path / "sample1.pred.npz"
     sample2 = tmp_path / "sample2.npz"
@@ -89,10 +93,12 @@ def test_masked_pwm_mae_summary_averages_per_sample_values(tmp_path):
         sample1,
         pwm_target=np.asarray([[1.0, 0.0, 0.0, 0.0]], dtype=np.float32),
         pwm_mask=np.asarray([1], dtype=np.float32),
+        canonical_reverse_complement=np.asarray(False),
     )
     np.savez_compressed(
         pred1,
         pwm=np.asarray([[0.0, 1.0, 0.0, 0.0]], dtype=np.float32),
+        canonical_reverse_complement=np.asarray(False),
     )
     np.savez_compressed(
         sample2,
@@ -105,6 +111,7 @@ def test_masked_pwm_mae_summary_averages_per_sample_values(tmp_path):
             dtype=np.float32,
         ),
         pwm_mask=np.asarray([1, 1, 0], dtype=np.float32),
+        canonical_reverse_complement=np.asarray(False),
     )
     np.savez_compressed(
         pred2,
@@ -116,6 +123,7 @@ def test_masked_pwm_mae_summary_averages_per_sample_values(tmp_path):
             ],
             dtype=np.float32,
         ),
+        canonical_reverse_complement=np.asarray(False),
     )
 
     row1 = evaluate_pair(sample1, pred1)
@@ -123,9 +131,9 @@ def test_masked_pwm_mae_summary_averages_per_sample_values(tmp_path):
     by_metric = {item["metric"]: item for item in summarize_rows([row1, row2])}
 
     assert np.isclose(row1["pwm_mae"], 2.0)
-    assert np.isclose(row2["pwm_mae"], 0.0)
+    assert np.isclose(row2["pwm_mae"], 0.5)
     assert by_metric["pwm_mae"]["n"] == 2
-    assert np.isclose(by_metric["pwm_mae"]["mean"], 1.0)
+    assert np.isclose(by_metric["pwm_mae"]["mean"], 1.25)
 
 
 def test_evaluate_pair_masks_unknown_A_base_positions(tmp_path):
@@ -145,6 +153,7 @@ def test_evaluate_pair_masks_unknown_A_base_positions(tmp_path):
         A_backbone_label=A_backbone,
         A_contact_label=A_base,
         site_label=site,
+        canonical_reverse_complement=np.asarray(False),
     )
     np.savez_compressed(
         pred,
@@ -153,6 +162,7 @@ def test_evaluate_pair_masks_unknown_A_base_positions(tmp_path):
         A_backbone=A_backbone,
         A_contact=A_base,
         site_prob=site,
+        canonical_reverse_complement=np.asarray(False),
     )
 
     row = evaluate_pair(target, pred)
@@ -176,6 +186,7 @@ def test_evaluate_pair_masks_unobserved_pwm_columns_for_contact_maps(tmp_path):
         A_backbone_label=label,
         A_contact_label=label,
         site_label=np.ones((1,), dtype=np.float32),
+        canonical_reverse_complement=np.asarray(False),
     )
     np.savez_compressed(
         pred,
@@ -187,11 +198,12 @@ def test_evaluate_pair_masks_unobserved_pwm_columns_for_contact_maps(tmp_path):
         A_backbone=np.asarray([[0.9, 0.1]], dtype=np.float32),
         A_contact=np.asarray([[0.9, 0.1]], dtype=np.float32),
         site_prob=np.ones((1,), dtype=np.float32),
+        canonical_reverse_complement=np.asarray(False),
     )
 
     row = evaluate_pair(target, pred)
 
-    assert np.isclose(row["pwm_mae"], 0.0)
+    assert np.isclose(row["pwm_mae"], 0.75)
     assert row["pwm_kl"] > 0.0
     assert row["A_backbone_top_l"] == 1.0
     assert row["A_contact_top_l"] == 1.0

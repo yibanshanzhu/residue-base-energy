@@ -25,6 +25,23 @@ def normalize_pwm(pwm: np.ndarray, eps: float = 1e-8) -> np.ndarray:
     return (pwm / pwm.sum(axis=1, keepdims=True)).astype(np.float32)
 
 
+def reverse_complement_pwm(pwm: np.ndarray) -> np.ndarray:
+    pwm = normalize_pwm(pwm)
+    return pwm[::-1, ::-1].copy()
+
+
+def canonicalize_pwm(pwm: np.ndarray) -> tuple[np.ndarray, bool]:
+    """Choose one deterministic representative of a PWM/RC pair.
+
+    The orientation with the lexicographically larger flattened [M, 4] matrix is
+    canonical. Exact RC-palindromes keep their input orientation.
+    """
+    direct = normalize_pwm(pwm)
+    reverse = reverse_complement_pwm(direct)
+    use_reverse = tuple(reverse.ravel()) > tuple(direct.ravel())
+    return (reverse if use_reverse else direct), use_reverse
+
+
 def read_pwm(path: str | Path) -> np.ndarray:
     rows: list[list[float]] = []
     in_meme_matrix = False
@@ -47,4 +64,3 @@ def read_pwm(path: str | Path) -> np.ndarray:
     if not rows:
         raise ValueError(f"No PWM rows found in {path}.")
     return normalize_pwm(np.asarray(rows, dtype=np.float32))
-

@@ -41,6 +41,11 @@ class RBEDataset(Dataset):
     def __getitem__(self, idx: int) -> dict:
         path = self.paths[idx]
         with np.load(path, allow_pickle=False) as data:
+            if "canonical_reverse_complement" not in data:
+                raise ValueError(
+                    f"{path}: cache is not canonical; rebuild it on the "
+                    "canonical-pwm-orientation branch."
+                )
             residue_aa = data["residue_aa"].astype(str)
             aa_idx = np.array([AA_TO_IDX[aa] for aa in residue_aa], dtype=np.int64)
             A_base_label = data["A_base_label"] if "A_base_label" in data else data["A_label"]
@@ -81,6 +86,9 @@ class RBEDataset(Dataset):
                 "site_label": torch.from_numpy(data["site_label"].astype(np.float32)),
                 "slot_to_dna_index": torch.from_numpy(
                     data["slot_to_dna_index"].astype(np.int64)
+                ),
+                "canonical_reverse_complement": bool(
+                    data["canonical_reverse_complement"]
                 ),
             }
         return sample

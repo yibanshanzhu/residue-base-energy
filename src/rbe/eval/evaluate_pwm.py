@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
+from rbe.data.pwm import canonicalize_pwm
 from rbe.eval.metrics import average_precision, binary_metrics, pwm_metrics, top_l_precision
 
 
@@ -73,24 +74,22 @@ def evaluate(args: argparse.Namespace) -> None:
     target = _load_npz(args.target)
     pred = _load_npz(args.pred)
     target_pwm = _get_pwm(target)
-    if "pwm_mask" not in target:
-        raise ValueError(f"{args.target}: missing pwm_mask required for masked PWM MAE.")
+    _require_canonical(target, args.target)
+    _require_canonical(pred, args.pred)
 
     rows = []
     for method, path in [("ours", args.pred)] + _parse_baseline(args.baseline):
-        metrics = pwm_metrics(
-            target_pwm,
-            _get_pwm(_load_npz(path)),
-            mae_mask=target["pwm_mask"],
-        )
+        prediction = _load_npz(path)
+        _require_canonical(prediction, path)
+        metrics = pwm_metrics(target_pwm, _get_pwm(prediction))
         rows.append({"method": method, **metrics})
 
     print("PWM")
-    print("method\tmae\tkl\tic_pcc\trc_aware_kl")
+    print("method\tmae\tkl\tic_pcc")
     for row in rows:
         print(
             f"{row['method']}\t{row['mae']:.6f}\t{row['kl']:.6f}\t"
-            f"{row['ic_pcc']:.6f}\t{row['rc_aware_kl']:.6f}"
+            f"{row['ic_pcc']:.6f}"
         )
 
     extra = {"pwm": rows}
@@ -131,6 +130,13 @@ def evaluate(args: argparse.Namespace) -> None:
         output = Path(args.json_output)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(extra, indent=2), encoding="utf-8")
+
+
+def _require_canonical(data: dict, path: str | Path) -> None:
+    if "canonical_reverse_complement" not in data:
+        raise ValueError(f"{path}: missing canonical PWM orientation metadata.")
+    if canonicalize_pwm(_get_pwm(data))[1]:
+        raise ValueError(f"{path}: PWM is not in canonical orientation.")
 
 
 def build_argparser() -> argparse.ArgumentParser:

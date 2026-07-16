@@ -5,12 +5,13 @@ from pathlib import Path
 
 import numpy as np
 
+from rbe.data.alignment import reverse_complement_sequence
 from rbe.data.alignment_selection import AlignmentSelectionConfig, select_pwm_dna_alignment
 from rbe.data.atom_geometry import ca_or_centroid
 from rbe.data.contact_labels import ContactCutoffs, compute_contact_labels
 from rbe.data.esm import extract_esm2_t33_hidden
 from rbe.data.features import build_residue_graph
-from rbe.data.pwm import read_pwm
+from rbe.data.pwm import canonicalize_pwm, read_pwm
 from rbe.data.residue_select import (
     parse_chain_list,
     residue_one_letter,
@@ -104,6 +105,21 @@ def build_processed_complex_sample(
         ),
     )
 
+    pwm_target, slot_to_dna_index, slot_arrays, canonical_rc = (
+        _canonicalize_sample_slots(
+            pwm_target,
+            slot_to_dna_index,
+            {
+                "pwm_mask": labels.pwm_mask,
+                "A_base_label": labels.A_base_label,
+                "A_base_mask": labels.A_base_mask,
+                "A_backbone_label": labels.A_backbone_label,
+                "A_contact_label": labels.A_contact_label,
+            },
+        )
+    )
+    alignment_meta = _canonical_alignment_meta(alignment_meta, canonical_rc)
+
     arrays = {
         "residue_ids": residue_ids,
         "residue_aa": residue_aa,
@@ -112,12 +128,12 @@ def build_processed_complex_sample(
         "edge_attr": edge_attr,
         "esm2_repr": esm2_repr,
         "pwm_target": pwm_target,
-        "pwm_mask": labels.pwm_mask,
-        "A_label": labels.A_base_label,
-        "A_base_label": labels.A_base_label,
-        "A_base_mask": labels.A_base_mask,
-        "A_backbone_label": labels.A_backbone_label,
-        "A_contact_label": labels.A_contact_label,
+        "pwm_mask": slot_arrays["pwm_mask"],
+        "A_label": slot_arrays["A_base_label"],
+        "A_base_label": slot_arrays["A_base_label"],
+        "A_base_mask": slot_arrays["A_base_mask"],
+        "A_backbone_label": slot_arrays["A_backbone_label"],
+        "A_contact_label": slot_arrays["A_contact_label"],
         "site_label": labels.site_label,
         "slot_to_dna_index": slot_to_dna_index,
         **_alignment_arrays(alignment_meta),
@@ -154,6 +170,7 @@ def format_processed_complex_summary(
         f"site_pos={counts['site_pos']} "
         f"alignment={meta['alignment_mode']} chain={meta['alignment_chain']} "
         f"start={meta['alignment_start']} rc={meta['alignment_reverse_complement']} "
+        f"canonical_rc={meta['canonical_reverse_complement']} "
         f"score_mode={meta['alignment_score_mode']} "
         f"contact_candidates={meta['alignment_contact_candidate_count']}/"
         f"{meta['alignment_candidate_count']}"
@@ -189,4 +206,43 @@ def _alignment_arrays(meta: dict) -> dict[str, np.ndarray]:
         "alignment_contact_candidate_count": np.asarray(
             meta["alignment_contact_candidate_count"], dtype=np.int64
         ),
+        "canonical_reverse_complement": np.asarray(
+            meta["canonical_reverse_complement"], dtype=bool
+        ),
     }
+
+
+def _canonical_alignment_meta(meta: dict, reverse: bool) -> dict:
+    result = {**meta, "canonical_reverse_complement": bool(reverse)}
+    if reverse:
+        result["alignment_sequence"] = reverse_complement_sequence(
+            str(meta["alignment_sequence"])
+        )
+    return result
+
+
+def _canonicalize_sample_slots(
+    pwm: np.ndarray,
+    slot_to_dna_index: np.ndarray,
+    slot_arrays: dict[str, np.ndarray],
+) -> tuple[np.ndarray, np.ndarray, dict[str, np.ndarray], bool]:
+    canonical_pwm, reverse = canonicalize_pwm(pwm)
+    motif_len = canonical_pwm.shape[0]
+    if slot_to_dna_index.shape != (motif_len,):
+        raise ValueError(
+            f"slot_to_dna_index shape {slot_to_dna_index.shape} does not match "
+            f"motif length {motif_len}."
+        )
+    for key, value in slot_arrays.items():
+        if value.shape[-1] != motif_len:
+            raise ValueError(
+                f"{key} last axis {value.shape[-1]} does not match motif length "
+                f"{motif_len}."
+            )
+    if not reverse:
+        return canonical_pwm, slot_to_dna_index, slot_arrays, False
+
+    transformed = {}
+    for key, value in slot_arrays.items():
+        transformed[key] = value[..., ::-1].copy()
+    return canonical_pwm, slot_to_dna_index[::-1].copy(), transformed, True

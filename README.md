@@ -107,6 +107,7 @@ python -m rbe.data.process_complex \
 ```bash
 python -m rbe.train \
   --manifest data/train_manifest.txt \
+  --valid-manifest data/valid_manifest.txt \
   --config configs/dna_v1.yaml \
   --out-dir runs/dna_v1 \
   --device cuda

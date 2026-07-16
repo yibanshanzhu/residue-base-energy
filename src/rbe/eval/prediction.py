@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from rbe.data.pwm import canonicalize_pwm
+
 if TYPE_CHECKING:
     import torch
 
@@ -74,7 +76,36 @@ def prediction_arrays(sample: dict, outputs: dict[str, Any]) -> dict[str, np.nda
     for key in PREDICTION_KEYS:
         if key in outputs:
             arrays[key] = outputs[key].detach().cpu().numpy()
-    return arrays
+    return canonicalize_prediction_arrays(arrays)
+
+
+def canonicalize_prediction_arrays(
+    arrays: dict[str, np.ndarray],
+) -> dict[str, np.ndarray]:
+    if "pwm" not in arrays:
+        raise ValueError("Prediction arrays must contain pwm for canonicalization.")
+
+    result = dict(arrays)
+    result["pwm"], reverse = canonicalize_pwm(result["pwm"])
+    if reverse:
+        for key in ("pwm_logits",):
+            if key in result:
+                result[key] = result[key][::-1, ::-1].copy()
+        for key in (
+            "A",
+            "A_base",
+            "A_base_logits",
+            "A_backbone",
+            "A_backbone_logits",
+            "A_contact",
+            "A_contact_logits",
+        ):
+            if key in result:
+                result[key] = result[key][:, ::-1].copy()
+        if "E" in result:
+            result["E"] = result["E"][:, ::-1, ::-1].copy()
+    result["canonical_reverse_complement"] = np.asarray(reverse, dtype=bool)
+    return result
 
 
 def sample_metadata_arrays(sample: dict) -> dict[str, np.ndarray]:

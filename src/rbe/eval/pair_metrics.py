@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
+from rbe.data.pwm import canonicalize_pwm
 from rbe.eval.io import get_pwm, load_npz
 from rbe.eval.metrics import (
     average_precision,
@@ -28,13 +29,9 @@ def evaluate_pair(target_path: str | Path, pred_path: str | Path) -> dict:
         if label_key in target:
             row[f"{label_key[:-6]}_pos"] = float(target[label_key].sum())
 
-    if "pwm_mask" not in target:
-        raise ValueError(f"{target_path}: missing pwm_mask required for masked PWM MAE.")
-    for key, value in pwm_metrics(
-        get_pwm(target),
-        get_pwm(pred),
-        mae_mask=target["pwm_mask"],
-    ).items():
+    _require_canonical(target, target_path)
+    _require_canonical(pred, pred_path)
+    for key, value in pwm_metrics(get_pwm(target), get_pwm(pred)).items():
         row[f"pwm_{key}"] = value
 
     for prefix, label_key, pred_key, mask_key in _map_specs(target, pred):
@@ -52,6 +49,13 @@ def evaluate_pair(target_path: str | Path, pred_path: str | Path) -> dict:
             row[f"site_{key}"] = value
 
     return row
+
+
+def _require_canonical(data: dict, path: str | Path) -> None:
+    if "canonical_reverse_complement" not in data:
+        raise ValueError(f"{path}: missing canonical PWM orientation metadata.")
+    if canonicalize_pwm(get_pwm(data))[1]:
+        raise ValueError(f"{path}: PWM is not in canonical orientation.")
 
 
 def map_metrics(

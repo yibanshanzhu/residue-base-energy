@@ -8,19 +8,9 @@ from rbe.data.pwm import normalize_pwm
 def pwm_mae(
     target: np.ndarray,
     pred: np.ndarray,
-    mask: np.ndarray,
 ) -> float:
     target = normalize_pwm(target)
     pred = normalize_pwm(pred)
-    mask = np.asarray(mask, dtype=bool)
-    if mask.shape != (target.shape[0],):
-        raise ValueError(
-            f"PWM mask shape {mask.shape} does not match motif length {target.shape[0]}."
-        )
-    if not mask.any():
-        raise ValueError("PWM mask has no valid columns.")
-    target = target[mask]
-    pred = pred[mask]
     per_position_l1 = np.sum(np.abs(target - pred), axis=1)
     return float(np.mean(per_position_l1))
 
@@ -52,24 +42,15 @@ def weighted_pcc(target: np.ndarray, pred: np.ndarray, weights: np.ndarray) -> f
     return float(cov / denom) if denom > 0 else 0.0
 
 
-def reverse_complement_pwm(pwm: np.ndarray) -> np.ndarray:
-    pwm = normalize_pwm(pwm)
-    return pwm[::-1][:, [3, 2, 1, 0]]
-
-
 def pwm_metrics(
     target: np.ndarray,
     pred: np.ndarray,
-    mae_mask: np.ndarray,
 ) -> dict:
     weights = information_content(target)
-    direct_kl = pwm_kl(target, pred)
-    rc_kl = pwm_kl(target, reverse_complement_pwm(pred))
     return {
-        "mae": pwm_mae(target, pred, mask=mae_mask),
-        "kl": direct_kl,
+        "mae": pwm_mae(target, pred),
+        "kl": pwm_kl(target, pred),
         "ic_pcc": weighted_pcc(target, pred, weights),
-        "rc_aware_kl": min(direct_kl, rc_kl),
     }
 
 
