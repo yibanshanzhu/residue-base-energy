@@ -1,0 +1,7 @@
+reference_method	method	reference_mean	method_mean	mean_delta	median_delta	std_delta	n_groups	reference_better	method_better	ties
+full	full_uncalibrated	0.320221	0.320076	-0.000146	0.000000	0.000725	12	3	3	6
+full	pwm_only	0.320221	0.314330	-0.005892	0.018221	0.076299	12	6	5	1
+full	nearest_esm	0.320221	0.308569	-0.011653	0.013120	0.074957	12	7	5	0
+full	family_mean	0.320221	0.306209	-0.014012	0.009220	0.078826	12	6	5	1
+full	uniform_gate	0.320221	0.467786	0.147565	0.147427	0.164796	12	9	2	1
+full	shuffled_energy	0.320221	0.479888	0.159667	0.176803	0.177020	12	9	2	1

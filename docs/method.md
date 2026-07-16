@@ -22,6 +22,16 @@ RBE 的核心问题是：
 PWM[j,b] = softmax_b Σ_i A_base(i,j) * E(i,j,b)
 ```
 
+家族内 fixed-reference 模式使用训练组先验与 residual energy：
+
+```text
+logit[j,b] = log PWM_prior_train[j,b]
+             + alpha_valid * Σ_i A_base(i,j) * E(i,j,b)
+```
+
+`PWM_prior_train` 先在每个训练 UniProt 内平均，再对训练 UniProt 等权平均；不读取
+validation/test。`alpha_valid` 只由对应 outer fold 的 validation UniProt 从固定网格选择。
+
 ## Train vs Inference
 
 | 阶段 | 输入 | 输出 |
@@ -67,6 +77,9 @@ MAE_sample = mean_j sum_b |PWM_target[j,b] - PWM_pred[j,b]|
 ```
 
 数据集结果是 `mean_sample(MAE_sample)`。每个 sample 权重相同，不会把不同长度 PWM 的 columns 跨样本汇集。KL 和 IC-PCC 同样在 canonical 完整 PWM 上计算；不使用 `min(direct, RC)` oracle。
+
+家族 benchmark 先在同一 UniProt 的重复 structures 内平均，再对 held-out UniProt
+等权平均。family-reference PWM 已固定方向，不再执行 sample-wise canonical RC。
 
 ## Boundary
 

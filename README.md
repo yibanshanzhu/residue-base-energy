@@ -125,7 +125,8 @@ python -m rbe.predict \
   --device cuda
 ```
 
-ETS 家族内机制 benchmark 见 [`runbook_family_ets.md`](runbook_family_ets.md)。
+ETS 家族内机制 benchmark 见 [`runbook_family_ets.md`](runbook_family_ets.md)，已验证结果
+与 claim boundary 见 [`reports/family_ets_v1/README.md`](reports/family_ets_v1/README.md)。
 
 ## Evaluate
 
