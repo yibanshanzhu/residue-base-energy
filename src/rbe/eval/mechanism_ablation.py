@@ -33,6 +33,7 @@ def write_mechanism_ablations(
             )
         orientation = str(prediction["pwm_orientation"])
         prior_logits = np.asarray(prediction["pwm_prior_logits"], dtype=np.float32)
+        residual_scale = float(prediction["residual_scale"])
         if prior_logits.shape != (A.shape[1], 4):
             raise ValueError(
                 f"{sample_path.stem}: invalid PWM prior shape {prior_logits.shape}."
@@ -40,7 +41,9 @@ def write_mechanism_ablations(
 
         gate_mass = A.sum(axis=0, keepdims=True)
         uniform_gate = np.broadcast_to(gate_mass / A.shape[0], A.shape)
-        uniform_logits = prior_logits + np.sum(uniform_gate[..., None] * E, axis=0)
+        uniform_logits = prior_logits + residual_scale * np.sum(
+            uniform_gate[..., None] * E, axis=0
+        )
         _write_pwm_prediction(
             pred_path_for_sample(sample_path, output_dirs["uniform_gate"], suffix),
             uniform_logits,
@@ -51,7 +54,7 @@ def write_mechanism_ablations(
             hashlib.sha256(sample_path.stem.encode()).digest()[:8], "little"
         )
         permutation = np.random.default_rng(seed).permutation(A.shape[0])
-        shuffled_logits = prior_logits + np.sum(
+        shuffled_logits = prior_logits + residual_scale * np.sum(
             A[..., None] * E[permutation], axis=0
         )
         _write_pwm_prediction(

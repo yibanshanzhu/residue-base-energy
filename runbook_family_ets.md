@@ -88,11 +88,18 @@ for FOLD in {0..11}; do
 done
 ```
 
-## 5. 生成各 Fold 测试预测
+## 5. 生成各 Fold Validation/Test 预测
 
 ```bash
 for VARIANT in full pwm_only; do
   for FOLD in {0..11}; do
+    python -m rbe.eval.evaluate_manifest \
+      --manifest "data/family_ets_v1/folds/fold${FOLD}_valid.txt" \
+      --pred-dir "runs/ets_family_v1/${VARIANT}/fold${FOLD}/valid_preds" \
+      --checkpoint "runs/ets_family_v1/${VARIANT}/fold${FOLD}/best.pt" \
+      --device cuda \
+      --overwrite-pred
+
     python -m rbe.eval.evaluate_manifest \
       --manifest "data/family_ets_v1/folds/fold${FOLD}_test.txt" \
       --pred-dir "runs/ets_family_v1/${VARIANT}/fold${FOLD}/preds" \
@@ -103,7 +110,24 @@ for VARIANT in full pwm_only; do
 done
 ```
 
-## 6. 生成非神经网络 Baselines
+## 6. 用 Validation UniProt 校准 Residual Scale
+
+每个 fold 独立从固定网格 `0.0, 0.1, ..., 1.0` 选择 scale。选择过程只读取该 fold
+的 validation predictions/targets，然后把同一个 scale 应用于 test predictions。
+
+```bash
+python scripts/calibrate_family_residual.py \
+  --benchmark-root data/family_ets_v1 \
+  --prediction-root runs/ets_family_v1/full \
+  --out-root runs/ets_family_v1/full_calibrated
+
+python scripts/calibrate_family_residual.py \
+  --benchmark-root data/family_ets_v1 \
+  --prediction-root runs/ets_family_v1/pwm_only \
+  --out-root runs/ets_family_v1/pwm_only_calibrated
+```
+
+## 7. 生成非神经网络 Baselines
 
 `family_mean` 与模型的 epoch 0 prior 完全相同：先在每个训练 UniProt 内求平均，再对训练 UniProt 等权平均；
 `nearest_esm` 只从当前 fold 的训练组中选择 pooled-ESM2 cosine 最近邻。
@@ -114,7 +138,7 @@ python scripts/predict_family_baselines.py \
   --out-root runs/ets_family_v1/baselines
 ```
 
-## 7. 生成机制消融
+## 8. 生成机制消融
 
 `uniform_gate` 保留 prior 和每个 motif slot 的 gate 总量，但抹掉 residue 定位；
 `shuffled_energy` 保留 prior、gate 和 energy 的边际分布，但打乱 residue 对应关系。
@@ -122,19 +146,20 @@ python scripts/predict_family_baselines.py \
 ```bash
 python scripts/ablate_family_mechanism.py \
   --benchmark-root data/family_ets_v1 \
-  --prediction-root runs/ets_family_v1/full \
+  --prediction-root runs/ets_family_v1/full_calibrated \
   --out-root runs/ets_family_v1/mechanism_ablations
 ```
 
-## 8. UniProt 等权评估
+## 9. UniProt 等权评估
 
 模板中的 `{fold}` 必须用单引号保护，避免 shell 展开。
 
 ```bash
 python scripts/evaluate_family_methods.py \
   --benchmark-root data/family_ets_v1 \
-  --method 'full=runs/ets_family_v1/full/fold{fold}/preds' \
-  --method 'pwm_only=runs/ets_family_v1/pwm_only/fold{fold}/preds' \
+  --method 'full=runs/ets_family_v1/full_calibrated/fold{fold}/preds' \
+  --method 'full_uncalibrated=runs/ets_family_v1/full/fold{fold}/preds' \
+  --method 'pwm_only=runs/ets_family_v1/pwm_only_calibrated/fold{fold}/preds' \
   --method 'nearest_esm=runs/ets_family_v1/baselines/fold{fold}/nearest_esm/preds' \
   --method 'family_mean=runs/ets_family_v1/baselines/fold{fold}/family_mean/preds' \
   --method 'uniform_gate=runs/ets_family_v1/mechanism_ablations/fold{fold}/uniform_gate/preds' \
