@@ -13,7 +13,7 @@ model:
   num_egnn_layers: 3
   edge_attr_dim: 17
   pair_hidden_dim: 128
-  max_motif_len: 9
+  max_motif_len: 8
   coord_update_scale: 0.1
 
 loss:

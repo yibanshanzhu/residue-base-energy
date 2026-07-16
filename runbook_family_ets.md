@@ -10,7 +10,7 @@ residue-base supervision/配对是否真正贡献了预测能力。
 | family | ETS |
 | sample | 26 个单结合位点复合物 |
 | group | 12 个 UniProt accession |
-| target | 固定方向、固定 9 bp，`GGAA/GGAT` 位于 0-based slots `3:7` |
+| target | 固定方向、固定 8 bp，`GGAA/GGAT` 位于 0-based slots `3:7` |
 | split | leave-one-protein-out；同一 UniProt 的全部结构只在一个 split |
 | checkpoint | 只按独立 validation UniProt 的 PWM MAE 选择 `best.pt` |
 | 汇总 | 先对同一 UniProt 的结构求均值，再对 12 个 UniProt 等权求均值 |
@@ -29,7 +29,7 @@ pip install -e .
 
 ## 2. 生成 ETS 数据与 Folds
 
-复用已经生成好的 canonical cache；这里只做经过审计的方向变换和 9 bp 裁剪，不重新
+复用已经生成好的 canonical cache；这里只做经过审计的方向变换和 8 bp 裁剪，不重新
 计算结构或 ESM2 embedding。
 
 ```bash

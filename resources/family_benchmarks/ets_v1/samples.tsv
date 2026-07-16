@@ -1,35 +1,35 @@
 sample_id	protein_group	motif_id	include	reverse_complement	crop_start	core_length	reason
-7jsl_J_MA0760.1.jaspar	P50548	MA0760.1.jaspar	1	0	0	9	ERF single-site ETS motif
-7jsa_J_MA0760.1.jaspar	P50548	MA0760.1.jaspar	1	0	0	9	ERF single-site ETS motif
-7jsl_E_MA0760.1.jaspar	P50548	MA0760.1.jaspar	1	0	0	9	ERF single-site ETS motif
-7jsl_H_MA0760.1.jaspar	P50548	MA0760.1.jaspar	1	0	0	9	ERF single-site ETS motif
-7jsl_L_MA0760.1.jaspar	P50548	MA0760.1.jaspar	1	0	0	9	ERF single-site ETS motif
-4mhg_A_ETV6_MOUSE.H11MO.0.C	P97360	ETV6_MOUSE.H11MO.0.C	1	1	0	9	ETV6 single-site ETS motif
-3jtg_A_ELF3_MOUSE.H11MO.0.B	Q3UPW2	ELF3_MOUSE.H11MO.0.B	1	0	3	9	ELF3 single-site ETS motif
-4bqa_G_MA1484.1.jaspar	P15036	MA1484.1.jaspar	1	1	1	9	ETS2 single-site ETS motif
-4bqa_A_MA1484.1.jaspar	P15036	MA1484.1.jaspar	1	1	1	9	ETS2 single-site ETS motif
-4bqa_D_MA1484.1.jaspar	P15036	MA1484.1.jaspar	1	1	1	9	ETS2 single-site ETS motif
-3mfk_A_ETS1_HUMAN.H11MO.0.A	P14921	ETS1_HUMAN.H11MO.0.A	1	0	2	9	ETS1 single-site ETS motif
-3wtx_C_ETS1_HUMAN.H11MO.0.A	P14921	ETS1_HUMAN.H11MO.0.A	1	0	2	9	ETS1 single-site ETS motif
-3wtw_C_ETS1_HUMAN.H11MO.0.A	P14921	ETS1_HUMAN.H11MO.0.A	1	0	2	9	ETS1 single-site ETS motif
-3wtu_C_ETS1_HUMAN.H11MO.0.A	P14921	ETS1_HUMAN.H11MO.0.A	1	0	2	9	ETS1 single-site ETS motif
-3wts_C_ETS1_HUMAN.H11MO.0.A	P14921	ETS1_HUMAN.H11MO.0.A	1	0	2	9	ETS1 single-site ETS motif
-1awc_A_GABPA_MOUSE.H11MO.0.A	Q00422	GABPA_MOUSE.H11MO.0.A	1	0	3	9	GABPA single-site ETS motif
-1pue_F_SPI1_MOUSE.H11MO.0.A	P17433	SPI1_MOUSE.H11MO.0.A	1	0	4	9	SPI1 single-site ETS motif
+7jsl_J_MA0760.1.jaspar	P50548	MA0760.1.jaspar	1	0	0	8	ERF single-site ETS motif
+7jsa_J_MA0760.1.jaspar	P50548	MA0760.1.jaspar	1	0	0	8	ERF single-site ETS motif
+7jsl_E_MA0760.1.jaspar	P50548	MA0760.1.jaspar	1	0	0	8	ERF single-site ETS motif
+7jsl_H_MA0760.1.jaspar	P50548	MA0760.1.jaspar	1	0	0	8	ERF single-site ETS motif
+7jsl_L_MA0760.1.jaspar	P50548	MA0760.1.jaspar	1	0	0	8	ERF single-site ETS motif
+4mhg_A_ETV6_MOUSE.H11MO.0.C	P97360	ETV6_MOUSE.H11MO.0.C	1	1	0	8	ETV6 single-site ETS motif
+3jtg_A_ELF3_MOUSE.H11MO.0.B	Q3UPW2	ELF3_MOUSE.H11MO.0.B	1	0	3	8	ELF3 single-site ETS motif
+4bqa_G_MA1484.1.jaspar	P15036	MA1484.1.jaspar	1	1	1	8	ETS2 single-site ETS motif
+4bqa_A_MA1484.1.jaspar	P15036	MA1484.1.jaspar	1	1	1	8	ETS2 single-site ETS motif
+4bqa_D_MA1484.1.jaspar	P15036	MA1484.1.jaspar	1	1	1	8	ETS2 single-site ETS motif
+3mfk_A_ETS1_HUMAN.H11MO.0.A	P14921	ETS1_HUMAN.H11MO.0.A	1	0	2	8	ETS1 single-site ETS motif
+3wtx_C_ETS1_HUMAN.H11MO.0.A	P14921	ETS1_HUMAN.H11MO.0.A	1	0	2	8	ETS1 single-site ETS motif
+3wtw_C_ETS1_HUMAN.H11MO.0.A	P14921	ETS1_HUMAN.H11MO.0.A	1	0	2	8	ETS1 single-site ETS motif
+3wtu_C_ETS1_HUMAN.H11MO.0.A	P14921	ETS1_HUMAN.H11MO.0.A	1	0	2	8	ETS1 single-site ETS motif
+3wts_C_ETS1_HUMAN.H11MO.0.A	P14921	ETS1_HUMAN.H11MO.0.A	1	0	2	8	ETS1 single-site ETS motif
+1awc_A_GABPA_MOUSE.H11MO.0.A	Q00422	GABPA_MOUSE.H11MO.0.A	1	0	3	8	GABPA single-site ETS motif
+1pue_F_SPI1_MOUSE.H11MO.0.A	P17433	SPI1_MOUSE.H11MO.0.A	1	0	4	8	SPI1 single-site ETS motif
 1pue_E_MA0080.3.jaspar	P17433	MA0080.3.jaspar	0				database duplicate for the same SPI1 complex
-1bc7_C_ELK4_HUMAN.H11MO.0.A	P28324	ELK4_HUMAN.H11MO.0.A	1	0	1	9	ELK4 single-site ETS motif
-1hbx_G_ELK4_HUMAN.H11MO.0.A	P28324	ELK4_HUMAN.H11MO.0.A	1	0	1	9	ELK4 single-site ETS motif
-1k6o_A_ELK4_HUMAN.H11MO.0.A	P28324	ELK4_HUMAN.H11MO.0.A	1	0	1	9	ELK4 single-site ETS motif
+1bc7_C_ELK4_HUMAN.H11MO.0.A	P28324	ELK4_HUMAN.H11MO.0.A	1	0	1	8	ELK4 single-site ETS motif
+1hbx_G_ELK4_HUMAN.H11MO.0.A	P28324	ELK4_HUMAN.H11MO.0.A	1	0	1	8	ELK4 single-site ETS motif
+1k6o_A_ELK4_HUMAN.H11MO.0.A	P28324	ELK4_HUMAN.H11MO.0.A	1	0	1	8	ELK4 single-site ETS motif
 1hbx_H_UN0118.1.jaspar	P28324	UN0118.1.jaspar	0				PWM is inconsistent with the ELK4 chain
 1bc8_C_UN0118.1.jaspar	P28324	UN0118.1.jaspar	0				PWM is inconsistent with the ELK4 chain
 4iri_A_MA0474.2.jaspar	P11308	MA0474.2.jaspar	0				database duplicate of ERG specificity
 5ybd_X_MA0474.2.jaspar	P11308	MA0474.2.jaspar	0				database duplicate of ERG specificity
-5ybd_A_ERG_HUMAN.H11MO.0.A	P11308	ERG_HUMAN.H11MO.0.A	1	0	2	9	ERG single-site ETS motif
-6vge_A_ERG_HUMAN.H11MO.0.A	P11308	ERG_HUMAN.H11MO.0.A	1	0	2	9	ERG single-site ETS motif
-6vgg_A_ERG_HUMAN.H11MO.0.A	P11308	ERG_HUMAN.H11MO.0.A	1	0	2	9	ERG single-site ETS motif
-4bnc_A_ETV1_HUMAN.H11MO.0.A	P50549	ETV1_HUMAN.H11MO.0.A	1	0	1	9	ETV1 single-site ETS motif
-4uno_A_MA0765.3.jaspar	P41161	MA0765.3.jaspar	1	0	0	9	ETV5 single-site ETS motif
-1yo5_C_MA0686.1.jaspar	O95238	MA0686.1.jaspar	1	0	0	9	SPDEF single-site ETS motif with GGAT preference
+5ybd_A_ERG_HUMAN.H11MO.0.A	P11308	ERG_HUMAN.H11MO.0.A	1	0	2	8	ERG single-site ETS motif
+6vge_A_ERG_HUMAN.H11MO.0.A	P11308	ERG_HUMAN.H11MO.0.A	1	0	2	8	ERG single-site ETS motif
+6vgg_A_ERG_HUMAN.H11MO.0.A	P11308	ERG_HUMAN.H11MO.0.A	1	0	2	8	ERG single-site ETS motif
+4bnc_A_ETV1_HUMAN.H11MO.0.A	P50549	ETV1_HUMAN.H11MO.0.A	1	0	1	8	ETV1 single-site ETS motif
+4uno_A_MA0765.3.jaspar	P41161	MA0765.3.jaspar	1	0	0	8	ETV5 single-site ETS motif
+1yo5_C_MA0686.1.jaspar	O95238	MA0686.1.jaspar	1	0	1	8	SPDEF single-site ETS motif with GGAT preference
 4l0z_B_MA0098.3.jaspar	P14921	MA0098.3.jaspar	0				database duplicate of ETS1 specificity
 3wtw_H_MA0098.3.jaspar	P14921	MA0098.3.jaspar	0				database duplicate of ETS1 specificity
 5jvt_A_FLI1_HUMAN.H11MO.0.A	Q01543	FLI1_HUMAN.H11MO.0.A	0				18-bp tandem ETS motif

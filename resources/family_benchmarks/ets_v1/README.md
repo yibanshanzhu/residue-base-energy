@@ -8,7 +8,8 @@ DNA-binding-domain family, rather than identifying unrelated TF families.
 - Every protein is grouped by UniProt accession.
 - All structures from one accession stay in the same held-out fold.
 - Every included PWM is oriented to the `GGAA`/`GGAT` family reference.
-- Every target is cropped to a fixed 9-bp window with the ETS core at slots 3-6.
+- Every target is cropped to a fixed 8-bp window with the ETS core at zero-based
+  slots `3:7`.
 - Database duplicates, mismatched targets, and tandem FLI1 motifs are excluded.
 - Results are first averaged within UniProt groups, then across groups.
 

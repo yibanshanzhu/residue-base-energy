@@ -78,7 +78,7 @@ def test_ets_v1_spec_is_grouped_and_auditable():
     assert len(specs) == 37
     assert len(included) == 26
     assert len({spec.protein_group for spec in included}) == 12
-    assert {spec.core_length for spec in included} == {9}
+    assert {spec.core_length for spec in included} == {8}
 
 
 def test_prepare_family_benchmark_keeps_protein_groups_disjoint(tmp_path: Path):
