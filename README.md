@@ -119,10 +119,13 @@ python -m rbe.train \
 python -m rbe.predict \
   --pdb path/to/protein_monomer.pdb \
   --motif-length 10 \
+  --pwm-orientation canonical \
   --checkpoint runs/dna_v1/best.pt \
   --output predictions/protein_pwm.npz \
   --device cuda
 ```
+
+ETS 家族内机制 benchmark 见 [`runbook_family_ets.md`](runbook_family_ets.md)。
 
 ## Evaluate
 

@@ -6,8 +6,8 @@ import torch
 from torch.utils.data import DataLoader
 
 from rbe.data.dataset import RBEDataset, rbe_collate, to_device
-from rbe.data.pwm import canonicalize_pwm
 from rbe.eval.metrics import pwm_mae
+from rbe.eval.prediction import orient_prediction_arrays
 from rbe.losses import compute_rbe_losses
 from rbe.models import build_model_from_config
 from rbe.utils import ensure_dir, load_config, resolve_device, set_seed
@@ -44,7 +44,10 @@ def _validation_pwm_mae(
                 edge_attr=sample["edge_attr"],
                 motif_len=motif_len,
             )
-            pred_pwm, _ = canonicalize_pwm(outputs["pwm"].cpu().numpy())
+            pred_pwm = orient_prediction_arrays(
+                {"pwm": outputs["pwm"].cpu().numpy()},
+                str(sample["pwm_orientation"]),
+            )["pwm"]
             values.append(pwm_mae(sample["pwm_target"].cpu().numpy(), pred_pwm))
     return float(sum(values) / len(values))
 

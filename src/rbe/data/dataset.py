@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import Dataset
 
 from rbe.constants import AA_TO_IDX
-from rbe.data.pwm import normalize_pwm
+from rbe.data.pwm import canonicalize_pwm, normalize_pwm
 
 
 class RBEDataset(Dataset):
@@ -41,11 +41,19 @@ class RBEDataset(Dataset):
     def __getitem__(self, idx: int) -> dict:
         path = self.paths[idx]
         with np.load(path, allow_pickle=False) as data:
-            if "canonical_reverse_complement" not in data:
+            if "pwm_orientation" not in data:
                 raise ValueError(
-                    f"{path}: cache is not canonical; rebuild it on the "
-                    "canonical-pwm-orientation branch."
+                    f"{path}: cache is missing the explicit pwm_orientation contract."
                 )
+            pwm_orientation = str(data["pwm_orientation"])
+            if pwm_orientation != "canonical" and not pwm_orientation.startswith(
+                "family_reference:"
+            ):
+                raise ValueError(
+                    f"{path}: unsupported PWM orientation {pwm_orientation!r}."
+                )
+            if pwm_orientation == "canonical" and canonicalize_pwm(data["pwm_target"])[1]:
+                raise ValueError(f"{path}: target PWM is not canonical.")
             residue_aa = data["residue_aa"].astype(str)
             aa_idx = np.array([AA_TO_IDX[aa] for aa in residue_aa], dtype=np.int64)
             A_base_label = data["A_base_label"] if "A_base_label" in data else data["A_label"]
@@ -90,6 +98,7 @@ class RBEDataset(Dataset):
                 "canonical_reverse_complement": bool(
                     data["canonical_reverse_complement"]
                 ),
+                "pwm_orientation": pwm_orientation,
             }
         return sample
 

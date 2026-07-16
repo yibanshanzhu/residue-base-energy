@@ -17,7 +17,7 @@ from rbe.data.pdb import (
     select_dna_residues,
     select_protein_residues,
 )
-from rbe.eval.prediction import canonicalize_prediction_arrays
+from rbe.eval.prediction import orient_prediction_arrays
 from rbe.models import build_model_from_config
 from rbe.utils import resolve_device
 
@@ -93,7 +93,9 @@ def predict(args: argparse.Namespace) -> None:
             )
         },
     }
-    np.savez_compressed(output, **canonicalize_prediction_arrays(arrays))
+    np.savez_compressed(
+        output, **orient_prediction_arrays(arrays, args.pwm_orientation)
+    )
     print(
         f"wrote {output} N={len(protein)} M={int(args.motif_length)} "
         f"E_edges={edge_index.shape[1]}"
@@ -111,6 +113,11 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--protein-chains", default=None)
     parser.add_argument("--esm-npy", default=None, help="Precomputed [N,1280] ESM2 hidden .npy.")
     parser.add_argument("--device", default="cpu")
+    parser.add_argument(
+        "--pwm-orientation",
+        required=True,
+        help="canonical or an explicit family_reference:FAMILY:VERSION contract.",
+    )
     return parser
 
 

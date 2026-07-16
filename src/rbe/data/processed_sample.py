@@ -136,6 +136,7 @@ def build_processed_complex_sample(
         "A_contact_label": slot_arrays["A_contact_label"],
         "site_label": labels.site_label,
         "slot_to_dna_index": slot_to_dna_index,
+        "pwm_orientation": np.asarray("canonical"),
         **_alignment_arrays(alignment_meta),
     }
     return ProcessedComplexSample(

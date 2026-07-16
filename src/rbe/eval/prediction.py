@@ -76,17 +76,28 @@ def prediction_arrays(sample: dict, outputs: dict[str, Any]) -> dict[str, np.nda
     for key in PREDICTION_KEYS:
         if key in outputs:
             arrays[key] = outputs[key].detach().cpu().numpy()
-    return canonicalize_prediction_arrays(arrays)
+    return orient_prediction_arrays(arrays, str(sample["pwm_orientation"]))
 
 
 def canonicalize_prediction_arrays(
     arrays: dict[str, np.ndarray],
 ) -> dict[str, np.ndarray]:
+    return orient_prediction_arrays(arrays, "canonical")
+
+
+def orient_prediction_arrays(
+    arrays: dict[str, np.ndarray],
+    orientation: str,
+) -> dict[str, np.ndarray]:
     if "pwm" not in arrays:
-        raise ValueError("Prediction arrays must contain pwm for canonicalization.")
+        raise ValueError("Prediction arrays must contain pwm for orientation handling.")
+    if orientation != "canonical" and not orientation.startswith("family_reference:"):
+        raise ValueError(f"Unsupported PWM orientation: {orientation!r}.")
 
     result = dict(arrays)
-    result["pwm"], reverse = canonicalize_pwm(result["pwm"])
+    reverse = False
+    if orientation == "canonical":
+        result["pwm"], reverse = canonicalize_pwm(result["pwm"])
     if reverse:
         for key in ("pwm_logits",):
             if key in result:
@@ -105,6 +116,7 @@ def canonicalize_prediction_arrays(
         if "E" in result:
             result["E"] = result["E"][:, ::-1, ::-1].copy()
     result["canonical_reverse_complement"] = np.asarray(reverse, dtype=bool)
+    result["pwm_orientation"] = np.asarray(orientation)
     return result
 
 
@@ -113,4 +125,5 @@ def sample_metadata_arrays(sample: dict) -> dict[str, np.ndarray]:
         "residue_ids": np.asarray(sample["residue_ids"]),
         "residue_aa": np.asarray(sample["residue_aa"]),
         "residue_xyz": sample["residue_xyz"].detach().cpu().numpy(),
+        "pwm_orientation": np.asarray(sample["pwm_orientation"]),
     }

@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from rbe.data.pwm import canonicalize_pwm
-from rbe.eval.prediction import canonicalize_prediction_arrays
+from rbe.eval.prediction import canonicalize_prediction_arrays, orient_prediction_arrays
 
 
 def test_prediction_canonicalization_transforms_every_slot_axis():
@@ -29,3 +29,15 @@ def test_prediction_canonicalization_transforms_every_slot_axis():
     np.testing.assert_array_equal(result["site_prob"], arrays["site_prob"])
     assert bool(result["canonical_reverse_complement"])
     assert not canonicalize_pwm(result["pwm"])[1]
+
+
+def test_family_reference_prediction_keeps_learned_slot_orientation():
+    pwm = np.asarray(
+        [[0.1, 0.2, 0.3, 0.4], [0.1, 0.1, 0.1, 0.7]], dtype=np.float32
+    )
+
+    result = orient_prediction_arrays({"pwm": pwm}, "family_reference:ETS:v1")
+
+    np.testing.assert_allclose(result["pwm"], pwm)
+    assert str(result["pwm_orientation"]) == "family_reference:ETS:v1"
+    assert not bool(result["canonical_reverse_complement"])

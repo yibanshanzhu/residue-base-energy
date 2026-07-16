@@ -74,13 +74,15 @@ def evaluate(args: argparse.Namespace) -> None:
     target = _load_npz(args.target)
     pred = _load_npz(args.pred)
     target_pwm = _get_pwm(target)
-    _require_canonical(target, args.target)
-    _require_canonical(pred, args.pred)
+    target_orientation = _require_orientation(target, args.target)
+    if _require_orientation(pred, args.pred) != target_orientation:
+        raise ValueError("Target and prediction use different PWM orientations.")
 
     rows = []
     for method, path in [("ours", args.pred)] + _parse_baseline(args.baseline):
         prediction = _load_npz(path)
-        _require_canonical(prediction, path)
+        if _require_orientation(prediction, path) != target_orientation:
+            raise ValueError(f"{path}: baseline PWM orientation does not match target.")
         metrics = pwm_metrics(target_pwm, _get_pwm(prediction))
         rows.append({"method": method, **metrics})
 
@@ -132,11 +134,15 @@ def evaluate(args: argparse.Namespace) -> None:
         output.write_text(json.dumps(extra, indent=2), encoding="utf-8")
 
 
-def _require_canonical(data: dict, path: str | Path) -> None:
-    if "canonical_reverse_complement" not in data:
-        raise ValueError(f"{path}: missing canonical PWM orientation metadata.")
-    if canonicalize_pwm(_get_pwm(data))[1]:
+def _require_orientation(data: dict, path: str | Path) -> str:
+    if "pwm_orientation" not in data:
+        raise ValueError(f"{path}: missing pwm_orientation metadata.")
+    orientation = str(data["pwm_orientation"])
+    if orientation != "canonical" and not orientation.startswith("family_reference:"):
+        raise ValueError(f"{path}: unsupported PWM orientation {orientation!r}.")
+    if orientation == "canonical" and canonicalize_pwm(_get_pwm(data))[1]:
         raise ValueError(f"{path}: PWM is not in canonical orientation.")
+    return orientation
 
 
 def build_argparser() -> argparse.ArgumentParser:

@@ -30,6 +30,7 @@ def _write_npz_pair(tmp_path, name: str):
         A_contact_label=A_contact,
         site_label=site,
         canonical_reverse_complement=np.asarray(False),
+        pwm_orientation=np.asarray("canonical"),
     )
     np.savez_compressed(
         pred,
@@ -39,6 +40,7 @@ def _write_npz_pair(tmp_path, name: str):
         A_contact=A_contact,
         site_prob=site,
         canonical_reverse_complement=np.asarray(False),
+        pwm_orientation=np.asarray("canonical"),
     )
     return target, pred
 
@@ -59,16 +61,19 @@ def test_evaluate_pair_and_summary(tmp_path):
     assert by_metric["site_f1"]["mean"] == 1.0
 
 
-def test_evaluate_pair_requires_canonical_metadata(tmp_path):
+def test_evaluate_pair_requires_orientation_metadata(tmp_path):
     target = tmp_path / "sample.npz"
     pred = tmp_path / "sample.pred.npz"
     pwm = np.asarray([[0.25, 0.25, 0.25, 0.25]], dtype=np.float32)
     np.savez_compressed(target, pwm_target=pwm)
     np.savez_compressed(
-        pred, pwm=pwm, canonical_reverse_complement=np.asarray(False)
+        pred,
+        pwm=pwm,
+        canonical_reverse_complement=np.asarray(False),
+        pwm_orientation=np.asarray("canonical"),
     )
 
-    with np.testing.assert_raises_regex(ValueError, "missing canonical"):
+    with np.testing.assert_raises_regex(ValueError, "missing pwm_orientation"):
         evaluate_pair(target, pred)
 
 
@@ -94,11 +99,13 @@ def test_full_pwm_mae_summary_averages_per_sample_values(tmp_path):
         pwm_target=np.asarray([[1.0, 0.0, 0.0, 0.0]], dtype=np.float32),
         pwm_mask=np.asarray([1], dtype=np.float32),
         canonical_reverse_complement=np.asarray(False),
+        pwm_orientation=np.asarray("canonical"),
     )
     np.savez_compressed(
         pred1,
         pwm=np.asarray([[0.0, 1.0, 0.0, 0.0]], dtype=np.float32),
         canonical_reverse_complement=np.asarray(False),
+        pwm_orientation=np.asarray("canonical"),
     )
     np.savez_compressed(
         sample2,
@@ -112,6 +119,7 @@ def test_full_pwm_mae_summary_averages_per_sample_values(tmp_path):
         ),
         pwm_mask=np.asarray([1, 1, 0], dtype=np.float32),
         canonical_reverse_complement=np.asarray(False),
+        pwm_orientation=np.asarray("canonical"),
     )
     np.savez_compressed(
         pred2,
@@ -124,6 +132,7 @@ def test_full_pwm_mae_summary_averages_per_sample_values(tmp_path):
             dtype=np.float32,
         ),
         canonical_reverse_complement=np.asarray(False),
+        pwm_orientation=np.asarray("canonical"),
     )
 
     row1 = evaluate_pair(sample1, pred1)
@@ -154,6 +163,7 @@ def test_evaluate_pair_masks_unknown_A_base_positions(tmp_path):
         A_contact_label=A_base,
         site_label=site,
         canonical_reverse_complement=np.asarray(False),
+        pwm_orientation=np.asarray("canonical"),
     )
     np.savez_compressed(
         pred,
@@ -163,6 +173,7 @@ def test_evaluate_pair_masks_unknown_A_base_positions(tmp_path):
         A_contact=A_base,
         site_prob=site,
         canonical_reverse_complement=np.asarray(False),
+        pwm_orientation=np.asarray("canonical"),
     )
 
     row = evaluate_pair(target, pred)
@@ -187,6 +198,7 @@ def test_evaluate_pair_masks_unobserved_pwm_columns_for_contact_maps(tmp_path):
         A_contact_label=label,
         site_label=np.ones((1,), dtype=np.float32),
         canonical_reverse_complement=np.asarray(False),
+        pwm_orientation=np.asarray("canonical"),
     )
     np.savez_compressed(
         pred,
@@ -199,6 +211,7 @@ def test_evaluate_pair_masks_unobserved_pwm_columns_for_contact_maps(tmp_path):
         A_contact=np.asarray([[0.9, 0.1]], dtype=np.float32),
         site_prob=np.ones((1,), dtype=np.float32),
         canonical_reverse_complement=np.asarray(False),
+        pwm_orientation=np.asarray("canonical"),
     )
 
     row = evaluate_pair(target, pred)

@@ -10,8 +10,8 @@ from rbe.data.dataset import RBEDataset, to_device
 from rbe.eval.io import pred_path_for_sample, read_manifest
 from rbe.eval.prediction import (
     PREDICTION_KEYS,
-    canonicalize_prediction_arrays,
     load_model,
+    orient_prediction_arrays,
     prediction_arrays,
     run_model_on_sample,
     sample_metadata_arrays,
@@ -43,7 +43,7 @@ def predict_sample_ensemble(
         for key, value in sums.items()
     }
     arrays.update(sample_metadata_arrays(sample))
-    arrays = canonicalize_prediction_arrays(arrays)
+    arrays = orient_prediction_arrays(arrays, str(sample["pwm_orientation"]))
 
     output = Path(pred_path)
     output.parent.mkdir(parents=True, exist_ok=True)

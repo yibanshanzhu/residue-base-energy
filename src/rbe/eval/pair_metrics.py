@@ -29,8 +29,13 @@ def evaluate_pair(target_path: str | Path, pred_path: str | Path) -> dict:
         if label_key in target:
             row[f"{label_key[:-6]}_pos"] = float(target[label_key].sum())
 
-    _require_canonical(target, target_path)
-    _require_canonical(pred, pred_path)
+    target_orientation = _require_orientation(target, target_path)
+    pred_orientation = _require_orientation(pred, pred_path)
+    if target_orientation != pred_orientation:
+        raise ValueError(
+            f"PWM orientation mismatch: target={target_orientation!r}, "
+            f"prediction={pred_orientation!r}."
+        )
     for key, value in pwm_metrics(get_pwm(target), get_pwm(pred)).items():
         row[f"pwm_{key}"] = value
 
@@ -51,11 +56,15 @@ def evaluate_pair(target_path: str | Path, pred_path: str | Path) -> dict:
     return row
 
 
-def _require_canonical(data: dict, path: str | Path) -> None:
-    if "canonical_reverse_complement" not in data:
-        raise ValueError(f"{path}: missing canonical PWM orientation metadata.")
-    if canonicalize_pwm(get_pwm(data))[1]:
+def _require_orientation(data: dict, path: str | Path) -> str:
+    if "pwm_orientation" not in data:
+        raise ValueError(f"{path}: missing pwm_orientation metadata.")
+    orientation = str(data["pwm_orientation"])
+    if orientation != "canonical" and not orientation.startswith("family_reference:"):
+        raise ValueError(f"{path}: unsupported PWM orientation {orientation!r}.")
+    if orientation == "canonical" and canonicalize_pwm(get_pwm(data))[1]:
         raise ValueError(f"{path}: PWM is not in canonical orientation.")
+    return orientation
 
 
 def map_metrics(

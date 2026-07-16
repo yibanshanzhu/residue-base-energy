@@ -47,11 +47,16 @@ def align_deeppbs_predictions(
             failure_rows.append(f"{sample.stem}\t{exc}")
             continue
 
-        pwm, canonical_rc = canonicalize_pwm(pwm)
+        with np.load(sample, allow_pickle=False) as target:
+            orientation = str(target["pwm_orientation"])
+        canonical_rc = False
+        if orientation == "canonical":
+            pwm, canonical_rc = canonicalize_pwm(pwm)
         np.savez_compressed(
             destination,
             P=pwm,
             canonical_reverse_complement=np.asarray(canonical_rc, dtype=bool),
+            pwm_orientation=np.asarray(orientation),
         )
         aligned_samples.append(sample.resolve())
         mode_rows.append(f"{sample.stem}\t{mode}\t{sequence}")

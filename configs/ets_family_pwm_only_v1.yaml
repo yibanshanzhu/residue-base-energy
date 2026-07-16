@@ -1,0 +1,30 @@
+seed: 7
+device: cuda
+
+data:
+  ca_cutoff: 14.0
+  num_rbf: 16
+  rbf_max_distance: 20.0
+  batch_size: 1
+
+model:
+  esm_dim: 1280
+  hidden_dim: 128
+  num_egnn_layers: 3
+  edge_attr_dim: 17
+  pair_hidden_dim: 128
+  max_motif_len: 9
+  coord_update_scale: 0.1
+
+loss:
+  lambda_pwm_teacher: 0.0
+  lambda_A_base: 0.0
+  lambda_A_backbone: 0.0
+  lambda_site: 0.0
+  lambda_sparse: 0.0
+  lambda_noncontact: 0.0
+
+optim:
+  lr: 0.0002
+  weight_decay: 0.00001
+  epochs: 100
