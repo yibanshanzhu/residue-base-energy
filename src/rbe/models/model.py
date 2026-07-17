@@ -18,10 +18,15 @@ class ResidueBaseEnergyModel(nn.Module):
         max_motif_len: int = 64,
         coord_update_scale: float = 0.1,
         use_pwm_prior: bool = False,
+        use_esm: bool = True,
+        use_geometry: bool = True,
     ) -> None:
         super().__init__()
         self.max_motif_len = max_motif_len
         self.use_pwm_prior = use_pwm_prior
+        self.use_esm = use_esm
+        self.use_geometry = use_geometry
+        self.esm_dim = esm_dim
         node_in_dim = esm_dim + 20 + 1
         self.input_proj = nn.Sequential(
             nn.Linear(node_in_dim, hidden_dim),
@@ -88,13 +93,26 @@ class ResidueBaseEnergyModel(nn.Module):
             raise ValueError(
                 f"motif_len={motif_len} exceeds max_motif_len={self.max_motif_len}."
             )
-        coord = residue_xyz - residue_xyz.mean(dim=0, keepdim=True)
-        radius = coord.norm(dim=-1, keepdim=True) / 20.0
         aa_onehot = F.one_hot(aa_idx.long(), num_classes=20).float()
-        node_input = torch.cat([esm2_repr.float(), aa_onehot, radius], dim=-1)
+        esm_features = (
+            esm2_repr.float()
+            if self.use_esm
+            else aa_onehot.new_zeros((aa_onehot.shape[0], self.esm_dim))
+        )
+        if self.use_geometry:
+            coord = residue_xyz - residue_xyz.mean(dim=0, keepdim=True)
+            radius = coord.norm(dim=-1, keepdim=True) / 20.0
+            graph_edge_index = edge_index
+            graph_edge_attr = edge_attr.float()
+        else:
+            coord = residue_xyz
+            radius = aa_onehot.new_zeros((aa_onehot.shape[0], 1))
+            graph_edge_index = edge_index.new_empty((2, 0))
+            graph_edge_attr = edge_attr.new_empty((0, edge_attr.shape[-1])).float()
+        node_input = torch.cat([esm_features, aa_onehot, radius], dim=-1)
 
         h = self.input_proj(node_input)
-        h, coord = self.egnn(h, coord, edge_index, edge_attr.float())
+        h, coord = self.egnn(h, coord, graph_edge_index, graph_edge_attr)
 
         slot_ids = torch.arange(motif_len, device=h.device)
         slot = self.slot_embedding(slot_ids)

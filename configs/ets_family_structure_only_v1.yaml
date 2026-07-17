@@ -16,7 +16,7 @@ model:
   max_motif_len: 8
   coord_update_scale: 0.1
   use_pwm_prior: true
-  use_esm: true
+  use_esm: false
   use_geometry: true
 
 loss:

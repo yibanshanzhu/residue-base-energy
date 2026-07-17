@@ -211,3 +211,86 @@ def test_family_checkpoint_restores_training_group_pwm_prior(tmp_path):
     restored = load_model(checkpoint, torch.device("cpu"))
 
     torch.testing.assert_close(restored.pwm_prior(), prior)
+
+
+def test_structure_only_output_is_independent_of_esm():
+    model = ResidueBaseEnergyModel(
+        esm_dim=4,
+        hidden_dim=8,
+        num_egnn_layers=1,
+        edge_attr_dim=3,
+        pair_hidden_dim=8,
+        max_motif_len=2,
+        use_esm=False,
+        use_geometry=True,
+    ).eval()
+    inputs = {
+        "aa_idx": torch.tensor([0, 1, 2]),
+        "residue_xyz": torch.randn(3, 3),
+        "edge_index": torch.tensor([[0, 1, 2], [1, 2, 0]]),
+        "edge_attr": torch.randn(3, 3),
+        "motif_len": 2,
+    }
+
+    first = model(esm2_repr=torch.randn(3, 4), **inputs)
+    second = model(esm2_repr=torch.randn(3, 4), **inputs)
+
+    torch.testing.assert_close(first["pwm"], second["pwm"])
+    torch.testing.assert_close(first["A_base"], second["A_base"])
+    torch.testing.assert_close(first["E"], second["E"])
+
+
+def test_esm_only_output_is_independent_of_geometry():
+    model = ResidueBaseEnergyModel(
+        esm_dim=4,
+        hidden_dim=8,
+        num_egnn_layers=1,
+        edge_attr_dim=3,
+        pair_hidden_dim=8,
+        max_motif_len=2,
+        use_esm=True,
+        use_geometry=False,
+    ).eval()
+    shared = {
+        "esm2_repr": torch.randn(3, 4),
+        "aa_idx": torch.tensor([0, 1, 2]),
+        "motif_len": 2,
+    }
+    first = model(
+        residue_xyz=torch.randn(3, 3),
+        edge_index=torch.tensor([[0, 1, 2], [1, 2, 0]]),
+        edge_attr=torch.randn(3, 3),
+        **shared,
+    )
+    second = model(
+        residue_xyz=torch.randn(3, 3),
+        edge_index=torch.tensor([[0], [2]]),
+        edge_attr=torch.randn(1, 3),
+        **shared,
+    )
+
+    torch.testing.assert_close(first["pwm"], second["pwm"])
+    torch.testing.assert_close(first["A_base"], second["A_base"])
+    torch.testing.assert_close(first["E"], second["E"])
+
+
+def test_modality_ablation_models_have_identical_parameter_shapes():
+    shared = {
+        "esm_dim": 4,
+        "hidden_dim": 8,
+        "num_egnn_layers": 1,
+        "edge_attr_dim": 3,
+        "pair_hidden_dim": 8,
+        "max_motif_len": 2,
+    }
+    models = [
+        ResidueBaseEnergyModel(**shared, use_esm=True, use_geometry=True),
+        ResidueBaseEnergyModel(**shared, use_esm=True, use_geometry=False),
+        ResidueBaseEnergyModel(**shared, use_esm=False, use_geometry=True),
+    ]
+    state_shapes = [
+        {key: tuple(value.shape) for key, value in model.state_dict().items()}
+        for model in models
+    ]
+
+    assert state_shapes[0] == state_shapes[1] == state_shapes[2]

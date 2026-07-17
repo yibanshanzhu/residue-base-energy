@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import itertools
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -134,8 +135,11 @@ def evaluate_family_methods(
             "reference_mean",
             "method_mean",
             "mean_delta",
+            "mean_delta_ci95_low",
+            "mean_delta_ci95_high",
             "median_delta",
             "std_delta",
+            "sign_flip_pvalue",
             "n_groups",
             "reference_better",
             "method_better",
@@ -261,6 +265,7 @@ def _paired_pwm_mae(
         reference_values = np.asarray([reference[group] for group in groups])
         method_values = np.asarray([by_method[method][group] for group in groups])
         delta = method_values - reference_values
+        ci_low, ci_high = _bootstrap_mean_ci(delta)
         result.append(
             {
                 "reference_method": reference_method,
@@ -268,8 +273,11 @@ def _paired_pwm_mae(
                 "reference_mean": float(reference_values.mean()),
                 "method_mean": float(method_values.mean()),
                 "mean_delta": float(delta.mean()),
+                "mean_delta_ci95_low": ci_low,
+                "mean_delta_ci95_high": ci_high,
                 "median_delta": float(np.median(delta)),
                 "std_delta": float(delta.std(ddof=0)),
+                "sign_flip_pvalue": _exact_sign_flip_pvalue(delta),
                 "n_groups": len(groups),
                 "reference_better": int(np.sum(delta > 1e-12)),
                 "method_better": int(np.sum(delta < -1e-12)),
@@ -277,6 +285,36 @@ def _paired_pwm_mae(
             }
         )
     return result
+
+
+def _bootstrap_mean_ci(
+    values: np.ndarray,
+    *,
+    confidence: float = 0.95,
+    n_resamples: int = 20_000,
+    seed: int = 7,
+) -> tuple[float, float]:
+    rng = np.random.default_rng(seed)
+    indices = rng.integers(0, len(values), size=(n_resamples, len(values)))
+    means = values[indices].mean(axis=1)
+    tail = (1.0 - confidence) / 2.0
+    low, high = np.quantile(means, [tail, 1.0 - tail])
+    return float(low), float(high)
+
+
+def _exact_sign_flip_pvalue(values: np.ndarray) -> float:
+    if len(values) > 20:
+        raise ValueError("Exact paired sign-flip test supports at most 20 groups.")
+    observed = abs(float(values.mean()))
+    permuted = np.fromiter(
+        (
+            abs(float(np.mean(values * signs)))
+            for signs in itertools.product((-1.0, 1.0), repeat=len(values))
+        ),
+        dtype=np.float64,
+        count=2 ** len(values),
+    )
+    return float(np.mean(permuted >= observed - 1e-15))
 
 
 def _metric_keys(rows: list[dict]) -> list[str]:

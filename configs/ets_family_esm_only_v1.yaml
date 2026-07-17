@@ -17,7 +17,7 @@ model:
   coord_update_scale: 0.1
   use_pwm_prior: true
   use_esm: true
-  use_geometry: true
+  use_geometry: false
 
 loss:
   lambda_pwm_teacher: 1.0

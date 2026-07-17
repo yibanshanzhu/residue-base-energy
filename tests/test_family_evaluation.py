@@ -104,5 +104,8 @@ def test_family_evaluation_weights_uniprot_groups_equally(tmp_path: Path):
     paired = _read_tsv(result.paired_pwm_mae_tsv)[0]
     assert paired["method"] == "alt"
     assert np.isclose(float(paired["mean_delta"]), 1.0)
+    assert np.isclose(float(paired["mean_delta_ci95_low"]), 0.0)
+    assert np.isclose(float(paired["mean_delta_ci95_high"]), 2.0)
+    assert np.isclose(float(paired["sign_flip_pvalue"]), 1.0)
     assert paired["reference_better"] == "1"
     assert paired["ties"] == "1"
