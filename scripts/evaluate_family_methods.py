@@ -49,7 +49,7 @@ def main() -> None:
     print(f"wrote {result.per_group_tsv}")
     print(f"wrote {result.summary_tsv}")
     print(f"wrote {result.paired_pwm_mae_tsv}")
-    print(f"wrote {result.paired_pwm_metrics_tsv}")
+    print(f"wrote {result.paired_metrics_tsv}")
 
 
 if __name__ == "__main__":

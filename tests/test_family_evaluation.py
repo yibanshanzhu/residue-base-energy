@@ -110,7 +110,7 @@ def test_family_evaluation_weights_uniprot_groups_equally(tmp_path: Path):
     assert paired["reference_better"] == "1"
     assert paired["ties"] == "1"
 
-    paired_metrics = _read_tsv(result.paired_pwm_metrics_tsv)
+    paired_metrics = _read_tsv(result.paired_metrics_tsv)
     assert {row["metric"] for row in paired_metrics} == {
         "pwm_mae",
         "pwm_kl",

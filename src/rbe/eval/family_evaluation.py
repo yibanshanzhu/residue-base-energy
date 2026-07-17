@@ -29,7 +29,7 @@ class FamilyEvaluationResult:
     per_group_tsv: Path
     summary_tsv: Path
     paired_pwm_mae_tsv: Path
-    paired_pwm_metrics_tsv: Path
+    paired_metrics_tsv: Path
 
 
 def evaluate_family_methods(
@@ -88,7 +88,7 @@ def evaluate_family_methods(
     group_rows = _aggregate_groups(sample_rows, method_order)
     _validate_method_groups(group_rows, method_order, {group for _, group in folds})
     summary_rows = _summarize_methods(group_rows, method_order)
-    paired_metric_rows = _paired_pwm_metrics(
+    paired_metric_rows = _paired_metrics(
         group_rows, method_order, reference_method
     )
     paired_rows = [
@@ -102,7 +102,7 @@ def evaluate_family_methods(
         per_group_tsv=output / "per_group.tsv",
         summary_tsv=output / "summary.tsv",
         paired_pwm_mae_tsv=output / "paired_pwm_mae.tsv",
-        paired_pwm_metrics_tsv=output / "paired_pwm_metrics.tsv",
+        paired_metrics_tsv=output / "paired_metrics.tsv",
     )
     _write_tsv(
         result.per_sample_tsv,
@@ -154,7 +154,7 @@ def evaluate_family_methods(
         ],
     )
     _write_tsv(
-        result.paired_pwm_metrics_tsv,
+        result.paired_metrics_tsv,
         paired_metric_rows,
         [
             "reference_method",
@@ -272,13 +272,14 @@ def _summarize_methods(rows: list[dict], method_order: list[str]) -> list[dict]:
     return result
 
 
-def _paired_pwm_metrics(
+def _paired_metrics(
     rows: list[dict], method_order: list[str], reference_method: str
 ) -> list[dict]:
     metric_directions = {
         "pwm_mae": False,
         "pwm_kl": False,
         "pwm_ic_pcc": True,
+        "A_base_ap": True,
     }
     result = []
     for metric, higher_is_better in metric_directions.items():
@@ -291,8 +292,12 @@ def _paired_pwm_metrics(
             for method in method_order
         }
         reference = by_method[reference_method]
+        if not reference:
+            continue
         for method in method_order:
             if method == reference_method:
+                continue
+            if not by_method[method]:
                 continue
             groups = sorted(reference)
             if set(by_method[method]) != set(groups):

@@ -149,9 +149,9 @@ python scripts/evaluate_family_methods.py \
 | `structure_only - family_mean` | 无 PLM 时结构是否独立有效 | prior-reference 中 `mean_delta < 0` |
 | `esm_only - family_mean` | 无结构时 ESM 是否独立有效 | prior-reference 中 `mean_delta < 0` |
 
-`paired_pwm_metrics.tsv` 对 MAE、KL 和 IC-PCC 分别给出配对统计。只有效应方向
-正确、95% paired bootstrap CI 不跨0，并且 exact paired sign-flip `p <= 0.05`，
-才表述为“在该 ETS benchmark 上提供可泛化增量”。CI 跨0时应表述为“当前12个
-UniProt 的证据不足”，不能表述为该模态无效。
+`paired_metrics.tsv` 对 MAE、KL、IC-PCC 和可用模型的 A-base AP 分别给出配对
+统计。只有效应方向正确、95% paired bootstrap CI 不跨0，并且 exact paired
+sign-flip `p <= 0.05`，才表述为“在该 ETS benchmark 上提供可泛化增量”。CI
+跨0时应表述为“当前12个 UniProt 的证据不足”，不能表述为该模态无效。
 
 `A-base AP` 用于解释结构定位机制，不作为 specificity 增量成立的替代证据。
