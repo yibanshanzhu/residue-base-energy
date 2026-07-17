@@ -104,7 +104,7 @@ ESM-only 为 `0.4080`、family mean 为 `0.4889`。因此当前最具体的诊�
 | File | Content |
 |---|---|
 | `summary.tsv` | group-equal method/metric summary |
-| `per_group.tsv` | one row per method and held-out UniProt |
+| `per_group.tsv` | selected metrics per method and held-out UniProt |
 | `full_reference_paired_metrics.tsv` | conditional specificity/contact comparisons |
 | `prior_reference_paired_metrics.tsv` | independent comparisons against family prior |
 | `esm_only_residual_scales.tsv` | validation-only ESM-only scale selection |
