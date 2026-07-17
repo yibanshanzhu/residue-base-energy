@@ -34,3 +34,17 @@ def test_modality_configs_differ_only_in_input_flags():
     assert structure_only["model"]["use_geometry"] is True
     assert _without_modality_flags(full) == _without_modality_flags(esm_only)
     assert _without_modality_flags(full) == _without_modality_flags(structure_only)
+
+
+def test_broad_modality_configs_differ_only_in_input_flags():
+    variants = {
+        (True, True): _load_config("broad_full_v1.yaml"),
+        (True, False): _load_config("broad_esm_only_v1.yaml"),
+        (False, True): _load_config("broad_structure_only_v1.yaml"),
+        (False, False): _load_config("broad_aa_only_v1.yaml"),
+    }
+    reference = variants[(True, True)]
+
+    for flags, config in variants.items():
+        assert (config["model"]["use_esm"], config["model"]["use_geometry"]) == flags
+        assert _without_modality_flags(config) == _without_modality_flags(reference)

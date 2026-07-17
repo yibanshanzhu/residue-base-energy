@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import csv
+from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader
@@ -30,6 +32,7 @@ def _validation_pwm_mae(
     model: torch.nn.Module,
     loader: DataLoader,
     device: torch.device,
+    group_by_sample: dict[str, str] | None = None,
 ) -> float:
     values = []
     model.eval()
@@ -49,8 +52,43 @@ def _validation_pwm_mae(
                 {"pwm": outputs["pwm"].cpu().numpy()},
                 str(sample["pwm_orientation"]),
             )["pwm"]
-            values.append(pwm_mae(sample["pwm_target"].cpu().numpy(), pred_pwm))
-    return float(sum(values) / len(values))
+            values.append(
+                (
+                    Path(sample["path"]).stem,
+                    pwm_mae(sample["pwm_target"].cpu().numpy(), pred_pwm),
+                )
+            )
+    return _mean_validation_values(values, group_by_sample)
+
+
+def _mean_validation_values(
+    values: list[tuple[str, float]],
+    group_by_sample: dict[str, str] | None,
+) -> float:
+    if group_by_sample is None:
+        return float(sum(value for _, value in values) / len(values))
+    by_group: dict[str, list[float]] = {}
+    for sample_id, value in values:
+        if sample_id not in group_by_sample:
+            raise ValueError(f"Validation group table is missing sample {sample_id}.")
+        by_group.setdefault(group_by_sample[sample_id], []).append(value)
+    group_means = [sum(members) / len(members) for members in by_group.values()]
+    return float(sum(group_means) / len(group_means))
+
+
+def _read_validation_groups(path: str | None, column: str) -> dict[str, str] | None:
+    if path is None:
+        return None
+    with Path(path).open(newline="") as handle:
+        rows = list(csv.DictReader(handle, delimiter="\t"))
+    if not rows or "sample_id" not in rows[0] or column not in rows[0]:
+        raise ValueError(
+            f"Validation group table requires sample_id and {column!r} columns."
+        )
+    groups = {row["sample_id"]: row[column] for row in rows}
+    if len(groups) != len(rows):
+        raise ValueError("Validation group table contains duplicate sample_id values.")
+    return groups
 
 
 def train(args: argparse.Namespace) -> None:
@@ -68,6 +106,9 @@ def train(args: argparse.Namespace) -> None:
     device = resolve_device(config.get("device", "auto"))
     dataset = _build_dataset(args)
     valid_dataset = RBEDataset.from_manifest(args.valid_manifest)
+    valid_groups = _read_validation_groups(
+        args.valid_group_table, args.valid_group_column
+    )
     loader = DataLoader(
         dataset,
         batch_size=1,
@@ -106,7 +147,9 @@ def train(args: argparse.Namespace) -> None:
     ]
     print("\t".join(["epoch"] + metric_keys + ["valid_pwm_mae"]))
     if model.use_pwm_prior:
-        best_valid_mae = _validation_pwm_mae(model, valid_loader, device)
+        best_valid_mae = _validation_pwm_mae(
+            model, valid_loader, device, valid_groups
+        )
         initial_metrics = {
             **{key: float("nan") for key in metric_keys},
             "valid_pwm_mae": best_valid_mae,
@@ -151,7 +194,9 @@ def train(args: argparse.Namespace) -> None:
                 totals[key] += value
 
         metrics = {key: value / len(dataset) for key, value in totals.items()}
-        metrics["valid_pwm_mae"] = _validation_pwm_mae(model, valid_loader, device)
+        metrics["valid_pwm_mae"] = _validation_pwm_mae(
+            model, valid_loader, device, valid_groups
+        )
         print(
             "\t".join(
                 [str(epoch)]
@@ -178,6 +223,8 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--data-dir", default=None)
     parser.add_argument("--manifest", default=None)
     parser.add_argument("--valid-manifest", required=True)
+    parser.add_argument("--valid-group-table", default=None)
+    parser.add_argument("--valid-group-column", default="component")
     parser.add_argument("--config", default="configs/dna_v1.yaml")
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--epochs", type=int, default=None)

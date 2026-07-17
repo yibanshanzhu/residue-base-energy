@@ -88,8 +88,8 @@ def evaluate_family_methods(
     group_rows = _aggregate_groups(sample_rows, method_order)
     _validate_method_groups(group_rows, method_order, {group for _, group in folds})
     summary_rows = _summarize_methods(group_rows, method_order)
-    paired_metric_rows = _paired_metrics(
-        group_rows, method_order, reference_method
+    paired_metric_rows = paired_metrics(
+        group_rows, method_order, reference_method, group_key="protein_group"
     )
     paired_rows = [
         row for row in paired_metric_rows if row["metric"] == "pwm_mae"
@@ -272,8 +272,12 @@ def _summarize_methods(rows: list[dict], method_order: list[str]) -> list[dict]:
     return result
 
 
-def _paired_metrics(
-    rows: list[dict], method_order: list[str], reference_method: str
+def paired_metrics(
+    rows: list[dict],
+    method_order: list[str],
+    reference_method: str,
+    *,
+    group_key: str,
 ) -> list[dict]:
     metric_directions = {
         "pwm_mae": False,
@@ -285,7 +289,7 @@ def _paired_metrics(
     for metric, higher_is_better in metric_directions.items():
         by_method = {
             method: {
-                row["protein_group"]: float(row[metric])
+                row[group_key]: float(row[metric])
                 for row in rows
                 if row["method"] == method and metric in row
             }
@@ -324,7 +328,7 @@ def _paired_metrics(
                     "mean_delta_ci95_high": ci_high,
                     "median_delta": float(np.median(delta)),
                     "std_delta": float(delta.std(ddof=0)),
-                    "sign_flip_pvalue": _exact_sign_flip_pvalue(delta),
+                    "sign_flip_pvalue": _sign_flip_pvalue(delta),
                     "n_groups": len(groups),
                     "reference_better": int(np.sum(reference_wins)),
                     "method_better": int(np.sum(method_wins)),
@@ -349,10 +353,24 @@ def _bootstrap_mean_ci(
     return float(low), float(high)
 
 
-def _exact_sign_flip_pvalue(values: np.ndarray) -> float:
-    if len(values) > 20:
-        raise ValueError("Exact paired sign-flip test supports at most 20 groups.")
+def _sign_flip_pvalue(
+    values: np.ndarray,
+    *,
+    monte_carlo_samples: int = 100_000,
+    seed: int = 7,
+) -> float:
     observed = abs(float(values.mean()))
+    if len(values) > 20:
+        rng = np.random.default_rng(seed)
+        extreme = 0
+        completed = 0
+        while completed < monte_carlo_samples:
+            batch = min(4096, monte_carlo_samples - completed)
+            signs = rng.choice((-1.0, 1.0), size=(batch, len(values)))
+            permuted = np.abs((signs * values).mean(axis=1))
+            extreme += int(np.sum(permuted >= observed - 1e-15))
+            completed += batch
+        return float((extreme + 1) / (monte_carlo_samples + 1))
     permuted = np.fromiter(
         (
             abs(float(np.mean(values * signs)))
