@@ -29,6 +29,7 @@ class FamilyEvaluationResult:
     per_group_tsv: Path
     summary_tsv: Path
     paired_pwm_mae_tsv: Path
+    paired_pwm_metrics_tsv: Path
 
 
 def evaluate_family_methods(
@@ -87,7 +88,12 @@ def evaluate_family_methods(
     group_rows = _aggregate_groups(sample_rows, method_order)
     _validate_method_groups(group_rows, method_order, {group for _, group in folds})
     summary_rows = _summarize_methods(group_rows, method_order)
-    paired_rows = _paired_pwm_mae(group_rows, method_order, reference_method)
+    paired_metric_rows = _paired_pwm_metrics(
+        group_rows, method_order, reference_method
+    )
+    paired_rows = [
+        row for row in paired_metric_rows if row["metric"] == "pwm_mae"
+    ]
 
     output = Path(out_root)
     output.mkdir(parents=True, exist_ok=True)
@@ -96,6 +102,7 @@ def evaluate_family_methods(
         per_group_tsv=output / "per_group.tsv",
         summary_tsv=output / "summary.tsv",
         paired_pwm_mae_tsv=output / "paired_pwm_mae.tsv",
+        paired_pwm_metrics_tsv=output / "paired_pwm_metrics.tsv",
     )
     _write_tsv(
         result.per_sample_tsv,
@@ -132,6 +139,28 @@ def evaluate_family_methods(
         [
             "reference_method",
             "method",
+            "reference_mean",
+            "method_mean",
+            "mean_delta",
+            "mean_delta_ci95_low",
+            "mean_delta_ci95_high",
+            "median_delta",
+            "std_delta",
+            "sign_flip_pvalue",
+            "n_groups",
+            "reference_better",
+            "method_better",
+            "ties",
+        ],
+    )
+    _write_tsv(
+        result.paired_pwm_metrics_tsv,
+        paired_metric_rows,
+        [
+            "reference_method",
+            "method",
+            "metric",
+            "higher_is_better",
             "reference_mean",
             "method_mean",
             "mean_delta",
@@ -243,47 +272,60 @@ def _summarize_methods(rows: list[dict], method_order: list[str]) -> list[dict]:
     return result
 
 
-def _paired_pwm_mae(
+def _paired_pwm_metrics(
     rows: list[dict], method_order: list[str], reference_method: str
 ) -> list[dict]:
-    by_method = {
-        method: {
-            row["protein_group"]: float(row["pwm_mae"])
-            for row in rows
-            if row["method"] == method
-        }
-        for method in method_order
+    metric_directions = {
+        "pwm_mae": False,
+        "pwm_kl": False,
+        "pwm_ic_pcc": True,
     }
-    reference = by_method[reference_method]
     result = []
-    for method in method_order:
-        if method == reference_method:
-            continue
-        groups = sorted(reference)
-        if set(by_method[method]) != set(groups):
-            raise ValueError(f"Cannot pair {reference_method!r} and {method!r} by group.")
-        reference_values = np.asarray([reference[group] for group in groups])
-        method_values = np.asarray([by_method[method][group] for group in groups])
-        delta = method_values - reference_values
-        ci_low, ci_high = _bootstrap_mean_ci(delta)
-        result.append(
-            {
-                "reference_method": reference_method,
-                "method": method,
-                "reference_mean": float(reference_values.mean()),
-                "method_mean": float(method_values.mean()),
-                "mean_delta": float(delta.mean()),
-                "mean_delta_ci95_low": ci_low,
-                "mean_delta_ci95_high": ci_high,
-                "median_delta": float(np.median(delta)),
-                "std_delta": float(delta.std(ddof=0)),
-                "sign_flip_pvalue": _exact_sign_flip_pvalue(delta),
-                "n_groups": len(groups),
-                "reference_better": int(np.sum(delta > 1e-12)),
-                "method_better": int(np.sum(delta < -1e-12)),
-                "ties": int(np.sum(np.abs(delta) <= 1e-12)),
+    for metric, higher_is_better in metric_directions.items():
+        by_method = {
+            method: {
+                row["protein_group"]: float(row[metric])
+                for row in rows
+                if row["method"] == method and metric in row
             }
-        )
+            for method in method_order
+        }
+        reference = by_method[reference_method]
+        for method in method_order:
+            if method == reference_method:
+                continue
+            groups = sorted(reference)
+            if set(by_method[method]) != set(groups):
+                raise ValueError(
+                    f"Cannot pair {reference_method!r} and {method!r} "
+                    f"by group for {metric}."
+                )
+            reference_values = np.asarray([reference[group] for group in groups])
+            method_values = np.asarray([by_method[method][group] for group in groups])
+            delta = method_values - reference_values
+            ci_low, ci_high = _bootstrap_mean_ci(delta)
+            reference_wins = delta < -1e-12 if higher_is_better else delta > 1e-12
+            method_wins = delta > 1e-12 if higher_is_better else delta < -1e-12
+            result.append(
+                {
+                    "reference_method": reference_method,
+                    "method": method,
+                    "metric": metric,
+                    "higher_is_better": higher_is_better,
+                    "reference_mean": float(reference_values.mean()),
+                    "method_mean": float(method_values.mean()),
+                    "mean_delta": float(delta.mean()),
+                    "mean_delta_ci95_low": ci_low,
+                    "mean_delta_ci95_high": ci_high,
+                    "median_delta": float(np.median(delta)),
+                    "std_delta": float(delta.std(ddof=0)),
+                    "sign_flip_pvalue": _exact_sign_flip_pvalue(delta),
+                    "n_groups": len(groups),
+                    "reference_better": int(np.sum(reference_wins)),
+                    "method_better": int(np.sum(method_wins)),
+                    "ties": int(np.sum(np.abs(delta) <= 1e-12)),
+                }
+            )
     return result
 
 

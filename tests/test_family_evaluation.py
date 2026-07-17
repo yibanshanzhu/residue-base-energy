@@ -109,3 +109,12 @@ def test_family_evaluation_weights_uniprot_groups_equally(tmp_path: Path):
     assert np.isclose(float(paired["sign_flip_pvalue"]), 1.0)
     assert paired["reference_better"] == "1"
     assert paired["ties"] == "1"
+
+    paired_metrics = _read_tsv(result.paired_pwm_metrics_tsv)
+    assert {row["metric"] for row in paired_metrics} == {
+        "pwm_mae",
+        "pwm_kl",
+        "pwm_ic_pcc",
+    }
+    ic_pcc = next(row for row in paired_metrics if row["metric"] == "pwm_ic_pcc")
+    assert ic_pcc["higher_is_better"] == "True"
