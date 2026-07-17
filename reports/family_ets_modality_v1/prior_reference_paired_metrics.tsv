@@ -1,0 +1,10 @@
+reference_method	method	metric	higher_is_better	reference_mean	method_mean	mean_delta	mean_delta_ci95_low	mean_delta_ci95_high	median_delta	std_delta	sign_flip_pvalue	n_groups	reference_better	method_better	ties
+family_mean	esm_only	pwm_mae	False	0.306209	0.314983	0.008774	-0.028723	0.048469	0.000000	0.068630	0.673828	12	5	5	2
+family_mean	structure_only	pwm_mae	False	0.306209	0.311698	0.005488	-0.029396	0.039514	-0.002584	0.060720	0.769531	12	5	6	1
+family_mean	full	pwm_mae	False	0.306209	0.320221	0.014012	-0.029267	0.059270	-0.009220	0.078826	0.562500	12	5	6	1
+family_mean	esm_only	pwm_kl	False	0.163237	0.301171	0.137934	0.010098	0.355470	0.034415	0.341551	0.045898	12	9	3	0
+family_mean	structure_only	pwm_kl	False	0.163237	0.189470	0.026233	-0.004923	0.064806	0.000222	0.062687	0.233398	12	6	6	0
+family_mean	full	pwm_kl	False	0.163237	0.348318	0.185081	0.000662	0.509803	0.009841	0.515589	0.111328	12	6	6	0
+family_mean	esm_only	pwm_ic_pcc	True	0.934031	0.926019	-0.008012	-0.028526	0.011892	-0.001203	0.036140	0.526855	12	7	5	0
+family_mean	structure_only	pwm_ic_pcc	True	0.934031	0.922009	-0.012022	-0.034964	0.006194	0.001152	0.036576	0.339844	12	5	7	0
+family_mean	full	pwm_ic_pcc	True	0.934031	0.921144	-0.012887	-0.036725	0.009616	-0.000359	0.041059	0.322266	12	6	6	0
